@@ -1,7 +1,8 @@
 """Tests for bounded, proposal-only self-correction."""
 
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+
 from src.self_corrector import CorrectionLimitReached, SelfCorrector
 
 
@@ -21,9 +22,14 @@ class SelfCorrectorTests(unittest.TestCase):
         )
         self.assertEqual(result["attempt"], 1)
         self.assertEqual(result["error_category"], "missing_attribute")
+        self.assertIn(result["reasoning_profile"], {"fast", "balanced", "deep"})
         self.assertFalse(result["verified"])
         self.assertFalse(result["applied"])
         self.client.generate.assert_called_once()
+        self.assertEqual(
+            self.client.generate.call_args.kwargs["profile"],
+            result["reasoning_profile"],
+        )
 
     def test_second_attempt_is_allowed(self):
         corrector = SelfCorrector(self.client, max_attempts=2)
@@ -37,7 +43,9 @@ class SelfCorrectorTests(unittest.TestCase):
         for _ in range(2):
             corrector.propose("Fix parser", "pass", "AssertionError: failed")
         with self.assertRaises(CorrectionLimitReached):
-            corrector.propose("Fix parser", "pass", "AssertionError: still failed")
+            corrector.propose(
+                "Fix parser", "pass", "AssertionError: still failed"
+            )
         self.assertEqual(self.client.generate.call_count, 2)
 
     def test_invalid_attempt_limit_is_rejected(self):
@@ -63,4 +71,4 @@ class SelfCorrectorTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)
