@@ -1,9 +1,8 @@
 """Low-overhead resource guard for local Ollama inference.
 
-The guard does not try to predict exact model memory use. It applies conservative
-generation limits and refuses to start inference when the host reports too
-little available RAM. A process-wide lock prevents concurrent requests through
-this module from multiplying memory use.
+Conservative profiles trade output capacity against memory use. The guard also
+refuses inference when available RAM is too low and serializes requests through
+this Python process.
 """
 
 import contextlib
@@ -18,13 +17,21 @@ DEFAULT_NUM_CTX = 2048
 DEFAULT_NUM_PREDICT = 384
 DEFAULT_NUM_BATCH = 128
 DEFAULT_NUM_THREAD = 2
-
-# Limits are intentionally conservative for an 8 GB host.
 MAX_NUM_CTX = 4096
 MAX_NUM_PREDICT = 1024
 MAX_NUM_BATCH = 256
 MAX_NUM_THREAD = 4
 
+_PROFILE_DEFAULTS = {
+    "fast": {"num_ctx": 1024, "num_predict": 192, "num_batch": 64, "num_thread": 2},
+    "balanced": {
+        "num_ctx": DEFAULT_NUM_CTX,
+        "num_predict": DEFAULT_NUM_PREDICT,
+        "num_batch": DEFAULT_NUM_BATCH,
+        "num_thread": DEFAULT_NUM_THREAD,
+    },
+    "deep": {"num_ctx": 4096, "num_predict": 768, "num_batch": 128, "num_thread": 2},
+}
 _INFERENCE_LOCK = threading.Lock()
 
 
@@ -60,9 +67,7 @@ def available_memory_mb():
         status = MEMORYSTATUSEX()
         status.dwLength = ctypes.sizeof(status)
         try:
-            if ctypes.windll.kernel32.GlobalMemoryStatusEx(
-                ctypes.byref(status)
-            ):
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
                 return int(status.ullAvailPhys // (1024 * 1024))
         except (AttributeError, OSError):
             return None
@@ -77,7 +82,6 @@ def available_memory_mb():
         except (OSError, ValueError, IndexError):
             return None
 
-    # Optional dependency: keep the project usable without psutil.
     try:
         import psutil  # type: ignore[import-not-found]
 
@@ -86,23 +90,31 @@ def available_memory_mb():
         return None
 
 
-def generation_options():
-    """Return bounded Ollama generation settings."""
+def generation_options(profile="balanced", available_ram_mb=None):
+    """Return bounded options; use a cheaper profile under memory pressure."""
+    if profile not in _PROFILE_DEFAULTS:
+        profile = "balanced"
+    if profile == "deep" and (
+        available_ram_mb is None or available_ram_mb < 2048
+    ):
+        profile = "balanced"
+
+    defaults = _PROFILE_DEFAULTS[profile]
     return {
         "num_ctx": _bounded_env_int(
-            "JARVIS_OLLAMA_NUM_CTX", DEFAULT_NUM_CTX, 512, MAX_NUM_CTX
+            "JARVIS_OLLAMA_NUM_CTX", defaults["num_ctx"], 512, MAX_NUM_CTX
         ),
         "num_predict": _bounded_env_int(
             "JARVIS_OLLAMA_NUM_PREDICT",
-            DEFAULT_NUM_PREDICT,
-            64,
-            MAX_NUM_PREDICT,
+            defaults["num_predict"], 64, MAX_NUM_PREDICT,
         ),
         "num_batch": _bounded_env_int(
-            "JARVIS_OLLAMA_NUM_BATCH", DEFAULT_NUM_BATCH, 32, MAX_NUM_BATCH
+            "JARVIS_OLLAMA_NUM_BATCH",
+            defaults["num_batch"], 32, MAX_NUM_BATCH,
         ),
         "num_thread": _bounded_env_int(
-            "JARVIS_OLLAMA_NUM_THREAD", DEFAULT_NUM_THREAD, 1, MAX_NUM_THREAD
+            "JARVIS_OLLAMA_NUM_THREAD",
+            defaults["num_thread"], 1, MAX_NUM_THREAD,
         ),
     }
 
@@ -115,18 +127,14 @@ def minimum_free_ram_mb():
 
 
 def ensure_memory_headroom():
-    """Refuse inference when measured free RAM is below the safety threshold.
-
-    If the platform cannot report memory, generation remains bounded but the
-    RAM preflight cannot be guaranteed; callers can inspect the returned None.
-    """
+    """Refuse inference when measured free RAM is below the safety threshold."""
     free_mb = available_memory_mb()
     if free_mb is not None and free_mb < minimum_free_ram_mb():
         raise ResourceLimitError(
             f"Inference paused: only {free_mb} MiB RAM is available; "
             f"Jarvis requires at least {minimum_free_ram_mb()} MiB free. "
-            "Close memory-heavy apps or lower JARVIS_MIN_FREE_RAM_MB "
-            "deliberately before retrying."
+            "Close memory-heavy apps or deliberately adjust "
+            "JARVIS_MIN_FREE_RAM_MB before retrying."
         )
     return free_mb
 
