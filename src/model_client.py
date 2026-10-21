@@ -6,12 +6,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from src.resource_guard import (
-    MAX_NUM_CTX,
-    available_memory_mb,
-    generation_options,
-    inference_slot,
-)
+from src.resource_guard import generation_options, inference_slot
 
 
 DEFAULT_MODEL = "huihui_ai/qwen2.5-coder-abliterate:3b"
