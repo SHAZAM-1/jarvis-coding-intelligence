@@ -20,17 +20,59 @@ class BenchmarkTests(unittest.TestCase):
         self.assertTrue(ids)
         self.assertEqual(len(ids), len(set(ids)))
 
-    def test_evaluator_reports_missing_markers(self):
+    def test_evaluator_reports_missing_markers_for_custom_tasks(self):
         task = BenchmarkTask("example", "prompt", ("def ", "return"))
         result = evaluate_response("not code", task)
         self.assertFalse(result["passed"])
         self.assertEqual(result["missing_markers"], ["def ", "return"])
+        self.assertEqual(result["validation_method"], "required_markers")
 
-    def test_evaluator_accepts_all_required_markers_case_insensitively(self):
+    def test_evaluator_accepts_custom_markers_case_insensitively(self):
         task = BenchmarkTask("example", "prompt", ("DEF ", "RETURN"))
         result = evaluate_response("def add(a, b): return a + b", task)
         self.assertTrue(result["passed"])
         self.assertEqual(result["missing_markers"], [])
+
+    def test_ast_validation_rejects_wrong_addition_even_when_markers_exist(self):
+        result = evaluate_response(
+            "def add(a, b):\n    return a - b",
+            BENCHMARK_TASKS[0],
+        )
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["validation_method"], "python_ast_structure")
+        self.assertIn("expected a return expression adding a and b", result["issues"])
+
+    def test_ast_validation_accepts_fenced_valid_function(self):
+        result = evaluate_response(
+            "```python\ndef add(a, b):\n    return a + b\n```",
+            BENCHMARK_TASKS[0],
+        )
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["issues"], [])
+
+    def test_ast_validation_rejects_wrong_dictionary_default(self):
+        result = evaluate_response(
+            "data.get('name', 'unknown')",
+            BENCHMARK_TASKS[1],
+        )
+        self.assertFalse(result["passed"])
+        self.assertIn("the optional default must be None", result["issues"])
+
+    def test_ast_validation_rejects_wrong_comprehension(self):
+        result = evaluate_response(
+            "[number + 2 for number in numbers]",
+            BENCHMARK_TASKS[2],
+        )
+        self.assertFalse(result["passed"])
+        self.assertIn("expected to square each item from numbers", result["issues"])
+
+    def test_ast_validation_rejects_invalid_python(self):
+        result = evaluate_response(
+            "def add(a, b) return a + b",
+            BENCHMARK_TASKS[0],
+        )
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["issues"], ["response is not valid Python syntax"])
 
     def test_evaluator_rejects_non_string_response(self):
         with self.assertRaises(TypeError):

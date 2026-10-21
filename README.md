@@ -25,12 +25,12 @@ below 1536 MiB, inference is paused before a request is sent. This default
 threshold is configurable as documented below.
 
 These features do not yet constitute behavioral self-correction or a reliable
-coding-model accuracy benchmark. The smoke checks use simple response markers;
-they can accept incorrect code and do not execute generated code. The ledger
-records caller-supplied evidence but does not run tests itself and cannot prove
-that evidence is genuine. No candidate model is considered stronger until it
-is tested on the same reproducible coding tasks and resource measurements as
-the current model.
+coding-model accuracy benchmark. The smoke checks validate selected Python AST
+structures for the three built-in tasks; they do not execute generated code or
+prove full semantic correctness. The ledger records caller-supplied evidence
+but does not run tests itself and cannot prove that evidence is genuine. No
+candidate model is considered stronger until it is tested on the same
+reproducible coding tasks and resource measurements as the current model.
 
 ## Adaptive reasoning and resource controls
 
@@ -90,9 +90,11 @@ genuine. It never stores the full source code or raw failure output by design.
 
 The smoke-check runner is opt-in and sends three small requests to the selected
 local Ollama model. It does not download a model or execute generated code.
-The resource guard may refuse the requests when available RAM is too low.
-These marker-based checks are useful for a quick wiring check, not for proving
-model quality or selecting a winning model.
+For the built-in tasks, Python's AST parser checks the requested function,
+dictionary lookup, or list-comprehension structure. These checks are stronger
+than searching for text markers, but still do not prove runtime behavior or
+full semantic correctness. The resource guard may refuse requests when
+available RAM is too low.
 
 In PowerShell, run unit tests first. Only run the model checks when the laptop
 has adequate free RAM and Ollama is running:

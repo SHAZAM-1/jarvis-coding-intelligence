@@ -7,6 +7,7 @@ benchmark and not proof that generated code works.
 """
 
 import argparse
+import ast
 import json
 import sys
 from dataclasses import dataclass
@@ -52,10 +53,105 @@ BENCHMARK_TASKS = (
 )
 
 
+def _remove_code_fence(response):
+    """Remove one conventional outer Markdown code fence, if present."""
+    lines = response.strip().splitlines()
+    if len(lines) >= 2 and lines[0].strip().startswith("```") and lines[-1].strip() == "```":
+        return "\n".join(lines[1:-1]).strip()
+    return response.strip()
+
+
+def _ast_issues(response, task_id):
+    """Check expected syntax structure without executing generated Python."""
+    source = _remove_code_fence(response)
+    try:
+        tree = ast.parse(source, mode="exec")
+    except (SyntaxError, ValueError, TypeError):
+        return ["response is not valid Python syntax"]
+
+    if task_id == "python_add_function":
+        if len(tree.body) != 1 or not isinstance(tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return ["expected exactly one function definition"]
+        function = tree.body[0]
+        if isinstance(function, ast.AsyncFunctionDef) or function.name != "add":
+            return ["expected a synchronous function named add"]
+        args = [arg.arg for arg in function.args.args]
+        if args != ["a", "b"] or function.args.vararg or function.args.kwarg:
+            return ["expected exactly two positional parameters: a and b"]
+        valid_return = any(
+            isinstance(node, ast.Return)
+            and isinstance(node.value, ast.BinOp)
+            and isinstance(node.value.op, ast.Add)
+            and isinstance(node.value.left, ast.Name)
+            and node.value.left.id == "a"
+            and isinstance(node.value.right, ast.Name)
+            and node.value.right.id == "b"
+            for node in ast.walk(function)
+        )
+        return [] if valid_return else ["expected a return expression adding a and b"]
+
+    if task_id == "python_safe_dict_lookup":
+        if len(tree.body) != 1 or not isinstance(tree.body[0], ast.Expr):
+            return ["expected exactly one expression"]
+        expression = tree.body[0].value
+        if not (
+            isinstance(expression, ast.Call)
+            and isinstance(expression.func, ast.Attribute)
+            and isinstance(expression.func.value, ast.Name)
+            and expression.func.value.id == "data"
+            and expression.func.attr == "get"
+            and len(expression.args) in (1, 2)
+            and isinstance(expression.args[0], ast.Constant)
+            and expression.args[0].value == "name"
+            and not expression.keywords
+        ):
+            return ["expected data.get('name') with an optional default"]
+        if len(expression.args) == 2 and not (
+            isinstance(expression.args[1], ast.Constant)
+            and expression.args[1].value is None
+        ):
+            return ["the optional default must be None"]
+        return []
+
+    if task_id == "python_list_comprehension":
+        if len(tree.body) != 1 or not isinstance(tree.body[0], ast.Expr):
+            return ["expected exactly one expression"]
+        expression = tree.body[0].value
+        if not isinstance(expression, ast.ListComp) or len(expression.generators) != 1:
+            return ["expected a list comprehension with one generator"]
+        generator = expression.generators[0]
+        if not (
+            isinstance(generator.target, ast.Name)
+            and isinstance(generator.iter, ast.Name)
+            and generator.iter.id == "numbers"
+            and isinstance(expression.elt, ast.BinOp)
+            and isinstance(expression.elt.op, ast.Pow)
+            and isinstance(expression.elt.left, ast.Name)
+            and expression.elt.left.id == generator.target.id
+            and isinstance(expression.elt.right, ast.Constant)
+            and expression.elt.right.value == 2
+        ):
+            return ["expected to square each item from numbers"]
+        return []
+
+    return None
+
+
 def evaluate_response(response, task):
-    """Return transparent marker checks; do not execute model-generated code."""
+    """Check expected AST shape for built-in tasks; never execute model code."""
     if not isinstance(response, str):
         raise TypeError("Model response must be a string.")
+
+    issues = _ast_issues(response, task.task_id)
+    if issues is not None:
+        return {
+            "passed": not issues,
+            "validation_method": "python_ast_structure",
+            "required_markers": list(task.required_markers),
+            "missing_markers": [],
+            "issues": issues,
+        }
+
     lowered = response.casefold()
     missing = [
         marker for marker in task.required_markers
@@ -63,8 +159,10 @@ def evaluate_response(response, task):
     ]
     return {
         "passed": not missing,
+        "validation_method": "required_markers",
         "required_markers": list(task.required_markers),
         "missing_markers": missing,
+        "issues": [],
     }
 
 
@@ -90,8 +188,10 @@ def run_benchmark(client, tasks=BENCHMARK_TASKS):
             results.append({
                 "task_id": task.task_id,
                 "passed": False,
+                "validation_method": "error",
                 "required_markers": list(task.required_markers),
                 "missing_markers": list(task.required_markers),
+                "issues": [],
                 "response_chars": None,
                 "error_type": type(exc).__name__,
             })
@@ -109,8 +209,8 @@ def run_benchmark(client, tasks=BENCHMARK_TASKS):
         "score_percent": round(100 * passed / len(results), 2) if results else 0.0,
         "results": results,
         "limitations": [
-            "Marker checks are heuristic and can accept incorrect code.",
-            "Generated code is not executed.",
+            "AST checks validate syntax shape, not runtime behavior or full semantics.",
+            "Generated code is parsed but never executed.",
             "No unit tests, security checks, or behavioral equivalence checks run.",
             "A single run is not a statistically valid model accuracy comparison.",
         ],
