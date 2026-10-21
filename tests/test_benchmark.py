@@ -1,12 +1,15 @@
 """Offline tests for the deterministic coding smoke benchmark."""
 
+import io
 import unittest
-from unittest.mock import Mock
+from contextlib import redirect_stderr, redirect_stdout
+from unittest.mock import Mock, patch
 
 from src.benchmark import (
     BENCHMARK_TASKS,
     BenchmarkTask,
     evaluate_response,
+    main,
     run_benchmark,
 )
 
@@ -60,11 +63,18 @@ class BenchmarkTests(unittest.TestCase):
         result = run_benchmark(client, BENCHMARK_TASKS[:2])
         self.assertEqual(result["tasks_failed"], 1)
         self.assertEqual(result["results"][0]["error_type"], "RuntimeError")
-        self.assertNotIn(
-            "private machine details",
-            str(result),
-        )
+        self.assertNotIn("private machine details", str(result))
         self.assertTrue(result["results"][1]["passed"])
+
+    def test_cli_without_run_flag_performs_no_inference(self):
+        output = io.StringIO()
+        errors = io.StringIO()
+        with patch("src.benchmark.OllamaClient") as client_factory:
+            with redirect_stdout(output), redirect_stderr(errors):
+                status = main(["--model", "already-installed-model"])
+        self.assertEqual(status, 2)
+        client_factory.assert_not_called()
+        self.assertIn("No inference was run", errors.getvalue())
 
     def test_empty_task_set_returns_zero_score(self):
         result = run_benchmark(Mock(), ())
