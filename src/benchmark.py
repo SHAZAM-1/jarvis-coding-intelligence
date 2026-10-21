@@ -76,17 +76,27 @@ def _ast_issues(response, task_id):
         if isinstance(function, ast.AsyncFunctionDef) or function.name != "add":
             return ["expected a synchronous function named add"]
         args = [arg.arg for arg in function.args.args]
-        if args != ["a", "b"] or function.args.vararg or function.args.kwarg:
-            return ["expected exactly two positional parameters: a and b"]
-        valid_return = any(
-            isinstance(node, ast.Return)
-            and isinstance(node.value, ast.BinOp)
-            and isinstance(node.value.op, ast.Add)
-            and isinstance(node.value.left, ast.Name)
-            and node.value.left.id == "a"
-            and isinstance(node.value.right, ast.Name)
-            and node.value.right.id == "b"
-            for node in ast.walk(function)
+        if (
+            args != ["a", "b"]
+            or function.args.posonlyargs
+            or function.args.vararg
+            or function.args.kwonlyargs
+            or function.args.kwarg
+            or function.args.defaults
+            or any(default is not None for default in function.args.kw_defaults)
+            or function.decorator_list
+        ):
+            return ["expected exactly two plain parameters: a and b"]
+        if len(function.body) != 1 or not isinstance(function.body[0], ast.Return):
+            return ["expected one direct return statement"]
+        value = function.body[0].value
+        valid_return = (
+            isinstance(value, ast.BinOp)
+            and isinstance(value.op, ast.Add)
+            and isinstance(value.left, ast.Name)
+            and value.left.id == "a"
+            and isinstance(value.right, ast.Name)
+            and value.right.id == "b"
         )
         return [] if valid_return else ["expected a return expression adding a and b"]
 
@@ -124,6 +134,8 @@ def _ast_issues(response, task_id):
             isinstance(generator.target, ast.Name)
             and isinstance(generator.iter, ast.Name)
             and generator.iter.id == "numbers"
+            and not generator.ifs
+            and not generator.is_async
             and isinstance(expression.elt, ast.BinOp)
             and isinstance(expression.elt.op, ast.Pow)
             and isinstance(expression.elt.left, ast.Name)
