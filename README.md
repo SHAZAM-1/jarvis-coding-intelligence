@@ -7,7 +7,8 @@ reproducible evaluation, verified learning, and resource-aware operation.
 ## Implemented
 
 - Read-only Ollama model inventory and metadata audit.
-- Local-only Ollama client with bounded prompt/response sizes.
+- Local-only Ollama client with bounded prompt/response sizes and finite,
+  bounded request timeouts.
 - Conservative resource guard: RAM preflight, serialized inference, bounded
   context/output/batch/thread settings, and short model keep-alive.
 - Resource-aware task routing: fast, balanced, and deep reasoning budgets.
@@ -68,6 +69,10 @@ avoid concurrent model requests. Ollama is asked to unload the model after 30
 seconds of inactivity; this saves idle RAM but can make the next request slower
 because the model may need to load again. Existing Ollama settings and other
 applications are not changed.
+
+The Ollama client request timeout defaults to 90 seconds. Explicit timeouts
+must be finite, greater than zero, and no more than 600 seconds; NaN, infinity,
+and larger values are rejected during client construction.
 
 ## Verified learning ledger
 

@@ -62,8 +62,14 @@ class OllamaClientTests(unittest.TestCase):
             OllamaClient(model="   ")
 
     def test_invalid_timeout_is_rejected(self):
-        with self.assertRaises(ValueError):
-            OllamaClient(timeout=0)
+        invalid_timeouts = (0, -1, float("nan"), float("inf"), 601, True)
+        for timeout in invalid_timeouts:
+            with self.subTest(timeout=timeout):
+                with self.assertRaises(ValueError):
+                    OllamaClient(timeout=timeout)
+
+    def test_timeout_at_upper_bound_is_accepted(self):
+        self.assertEqual(OllamaClient(timeout=600).timeout, 600)
 
     def test_empty_prompt_is_rejected(self):
         with self.assertRaises(ValueError):
