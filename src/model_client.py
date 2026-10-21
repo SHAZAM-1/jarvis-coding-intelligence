@@ -1,10 +1,12 @@
-"""Minimal, local-only Ollama client."""
+"""Minimal, local-only Ollama client with a conservative resource budget."""
 
 import json
 import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
+
+from src.resource_guard import generation_options, inference_slot
 
 
 DEFAULT_MODEL = "huihui_ai/qwen2.5-coder-abliterate:3b"
@@ -18,7 +20,7 @@ class OllamaClientError(RuntimeError):
 
 
 class OllamaClient:
-    """Send bounded, non-streaming requests to a local Ollama server."""
+    """Send bounded, serialized requests to a local Ollama server."""
 
     def __init__(self, model=None, endpoint=None, timeout=90):
         self.model = model or os.getenv("OLLAMA_MODEL", DEFAULT_MODEL)
@@ -60,8 +62,7 @@ class OllamaClient:
             raise ValueError("Timeout must be a positive number.")
 
     def generate(self, prompt):
-        """Generate one bounded response without retries or streaming."""
-
+        """Generate one bounded response; never retry or stream requests."""
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("Prompt must be a non-empty string.")
 
@@ -75,6 +76,8 @@ class OllamaClient:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
+            "keep_alive": "30s",
+            "options": generation_options(),
         }
         request = Request(
             f"{self.endpoint}/api/generate",
@@ -84,8 +87,11 @@ class OllamaClient:
         )
 
         try:
-            with urlopen(request, timeout=self.timeout) as response:
-                raw_response = response.read(MAX_RESPONSE_BYTES + 1)
+            # The process-wide slot prevents concurrent calls from multiplying
+            # model memory use. The RAM check runs immediately before inference.
+            with inference_slot():
+                with urlopen(request, timeout=self.timeout) as response:
+                    raw_response = response.read(MAX_RESPONSE_BYTES + 1)
         except HTTPError as exc:
             raise OllamaClientError(
                 f"Ollama returned HTTP {exc.code}."
