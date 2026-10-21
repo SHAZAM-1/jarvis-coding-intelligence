@@ -4,12 +4,26 @@
 
 - Local Ollama client restricted to loopback HTTP on port 11434.
 - Bounded prompt and response sizes, request timeout, and no automatic retries.
+- Conservative resource guard: available-RAM preflight, one inference at a
+  time per Python process, bounded context/output/batch/thread settings, and a
+  short model keep-alive.
 - Deterministic classification of common error messages.
 - Correction proposals generated from supplied code and failure evidence.
 - Maximum of two proposal attempts per correction session.
 - Non-executing Python syntax parsing with a source hash.
 - No automatic file changes or execution of generated code.
 - Proposals remain unverified by default.
+
+## Resource guard limitations
+
+The default minimum available-RAM threshold is 1536 MiB. When the platform
+reports less, the client refuses to send an inference request and explains how
+to recover. If the platform cannot report available memory, the request still
+uses bounded generation settings but the RAM preflight cannot be guaranteed.
+The in-process lock prevents this client from running concurrent requests in
+one Python process; it does not coordinate other applications or independent
+processes that call Ollama directly. CPU thread limits apply to generation
+options but do not cap total system CPU use.
 
 ## Verification policy
 
