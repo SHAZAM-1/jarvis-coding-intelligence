@@ -42,6 +42,30 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result["validation_method"], "python_ast_structure")
         self.assertIn("expected a return expression adding a and b", result["issues"])
 
+    def test_ast_validation_rejects_required_keyword_only_argument(self):
+        result = evaluate_response(
+            "def add(a, b, *, extra):\n    return a + b",
+            BENCHMARK_TASKS[0],
+        )
+        self.assertFalse(result["passed"])
+        self.assertIn("expected exactly two plain parameters: a and b", result["issues"])
+
+    def test_ast_validation_rejects_nested_return_only(self):
+        result = evaluate_response(
+            "def add(a, b):\n    def nested():\n        return a + b\n    return 0",
+            BENCHMARK_TASKS[0],
+        )
+        self.assertFalse(result["passed"])
+        self.assertIn("expected one direct return statement", result["issues"])
+
+    def test_ast_validation_rejects_filtered_comprehension(self):
+        result = evaluate_response(
+            "[number ** 2 for number in numbers if number > 0]",
+            BENCHMARK_TASKS[2],
+        )
+        self.assertFalse(result["passed"])
+        self.assertIn("expected to square each item from numbers", result["issues"])
+
     def test_ast_validation_accepts_fenced_valid_function(self):
         result = evaluate_response(
             "```python\ndef add(a, b):\n    return a + b\n```",
