@@ -11,9 +11,10 @@ reproducible evaluation, verified learning, and resource-aware operation.
 - Conservative resource guard: RAM preflight, serialized inference, bounded
   context/output/batch/thread settings, and short model keep-alive.
 - Resource-aware task routing: fast, balanced, and deep reasoning budgets.
-- Deterministic error classification.
-- Bounded correction proposals (at most two attempts).
+- Deterministic error classification and bounded correction proposals.
 - Non-executing Python syntax verification.
+- Append-only, privacy-conscious learning ledger with evidence-gated VERIFIED
+  records.
 - Unit tests and Python 3.10–3.13 CI.
 
 The resource guard reduces avoidable memory use; it cannot guarantee that
@@ -21,10 +22,11 @@ Windows or Ollama will never use high CPU or RAM. If measured available RAM is
 below 1536 MiB, inference is paused before a request is sent. This default
 threshold is configurable as documented below.
 
-These features do not yet constitute behavioral self-correction, persistent
-verified learning, or a model benchmark. No candidate model is considered
-stronger until it is tested on the same reproducible coding tasks and resource
-measurements as the current model.
+These features do not yet constitute behavioral self-correction or a coding
+model benchmark. The ledger records caller-supplied evidence but does not run
+tests itself and cannot prove that evidence is genuine. No candidate model is
+considered stronger until it is tested on the same reproducible coding tasks
+and resource measurements as the current model.
 
 ## Adaptive reasoning and resource controls
 
@@ -39,8 +41,8 @@ Jarvis chooses a generation budget from simple, inspectable task signals:
 All profiles default to 2 inference threads. Deep mode is automatically reduced
 to balanced when available RAM is below 2,048 MiB or cannot be measured. The
 separate 1,536 MiB minimum-RAM preflight still blocks inference when memory is
-too low. Task routing is heuristic, not a measure of intelligence, and it must
-be benchmarked against real coding tasks before claiming better accuracy.
+too low. Task routing is heuristic, not a measure of intelligence, and must be
+benchmarked against real coding tasks before claiming better accuracy.
 
 | Environment variable | Default | Allowed range | Effect |
 | --- | ---: | ---: | --- |
@@ -66,6 +68,15 @@ avoid concurrent model requests. Ollama is asked to unload the model after 30
 seconds of inactivity; this saves idle RAM but can make the next request slower
 because the model may need to load again. Existing Ollama settings and other
 applications are not changed.
+
+## Verified learning ledger
+
+The runtime ledger defaults to `data/learning_ledger.jsonl`, which is ignored
+by Git. Each entry stores a source hash, diagnostic category, bounded summary,
+and status. A VERIFIED record additionally requires caller-supplied commands,
+zero exit code, a positive test count, and an ISO timestamp. The ledger does
+not execute tests and does not independently prove that supplied evidence is
+genuine. It never stores the full source code or raw failure output by design.
 
 ## Model accuracy and updates
 
