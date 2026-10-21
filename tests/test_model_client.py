@@ -2,6 +2,7 @@
 
 import json
 import unittest
+from contextlib import nullcontext
 from unittest.mock import patch
 
 from src.model_client import (
@@ -26,6 +27,14 @@ class FakeResponse:
 
 
 class OllamaClientTests(unittest.TestCase):
+    def setUp(self):
+        self.resource_patch = patch(
+            "src.model_client.inference_slot",
+            return_value=nullcontext(2048),
+        )
+        self.resource_patch.start()
+        self.addCleanup(self.resource_patch.stop)
+
     def test_default_model_is_selected(self):
         self.assertEqual(OllamaClient().model, DEFAULT_MODEL)
 
@@ -77,6 +86,10 @@ class OllamaClientTests(unittest.TestCase):
         self.assertEqual(body["model"], DEFAULT_MODEL)
         self.assertEqual(body["prompt"], "Say hello")
         self.assertFalse(body["stream"])
+        self.assertEqual(body["keep_alive"], "30s")
+        self.assertEqual(body["options"]["num_ctx"], 2048)
+        self.assertEqual(body["options"]["num_predict"], 384)
+        self.assertEqual(body["options"]["num_thread"], 2)
 
     @patch("src.model_client.urlopen")
     def test_non_object_response_is_rejected(self, mock_urlopen):
