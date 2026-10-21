@@ -16,6 +16,7 @@ reproducible evaluation, verified learning, and resource-aware operation.
 - Non-executing Python syntax verification.
 - Append-only, privacy-conscious learning ledger with evidence-gated VERIFIED
   records.
+- Small deterministic coding smoke checks (not a reliable accuracy benchmark).
 - Unit tests and Python 3.10–3.13 CI.
 
 The resource guard reduces avoidable memory use; it cannot guarantee that
@@ -23,11 +24,13 @@ Windows or Ollama will never use high CPU or RAM. If measured available RAM is
 below 1536 MiB, inference is paused before a request is sent. This default
 threshold is configurable as documented below.
 
-These features do not yet constitute behavioral self-correction or a coding
-model benchmark. The ledger records caller-supplied evidence but does not run
-tests itself and cannot prove that evidence is genuine. No candidate model is
-considered stronger until it is tested on the same reproducible coding tasks
-and resource measurements as the current model.
+These features do not yet constitute behavioral self-correction or a reliable
+coding-model accuracy benchmark. The smoke checks use simple response markers;
+they can accept incorrect code and do not execute generated code. The ledger
+records caller-supplied evidence but does not run tests itself and cannot prove
+that evidence is genuine. No candidate model is considered stronger until it
+is tested on the same reproducible coding tasks and resource measurements as
+the current model.
 
 ## Adaptive reasoning and resource controls
 
@@ -82,6 +85,32 @@ and status. A VERIFIED record additionally requires caller-supplied commands,
 zero exit code, a positive test count, and an ISO timestamp. The ledger does
 not execute tests and does not independently prove that supplied evidence is
 genuine. It never stores the full source code or raw failure output by design.
+
+## Coding smoke checks
+
+The smoke-check runner is opt-in and sends three small requests to the selected
+local Ollama model. It does not download a model or execute generated code.
+The resource guard may refuse the requests when available RAM is too low.
+These marker-based checks are useful for a quick wiring check, not for proving
+model quality or selecting a winning model.
+
+In PowerShell, run unit tests first. Only run the model checks when the laptop
+has adequate free RAM and Ollama is running:
+
+```powershell
+python -m unittest discover -s tests -v
+python -m src.benchmark --run
+```
+
+To test another model that is already installed, specify its exact Ollama name:
+
+```powershell
+python -m src.benchmark --run --model "qwen3.5:2b"
+```
+
+The command requires `--run` deliberately. Without that flag, it prints help
+and performs no inference. Run each candidate separately and do not compare
+scores as definitive accuracy measurements.
 
 ## Model accuracy and updates
 
