@@ -6,7 +6,12 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from src.resource_guard import generation_options, inference_slot
+from src.resource_guard import (
+    MAX_NUM_CTX,
+    available_memory_mb,
+    generation_options,
+    inference_slot,
+)
 
 
 DEFAULT_MODEL = "huihui_ai/qwen2.5-coder-abliterate:3b"
@@ -31,7 +36,6 @@ class OllamaClient:
 
         parsed = urlparse(self.endpoint)
         allowed_hosts = {"127.0.0.1", "localhost", "::1"}
-
         try:
             correct_port = parsed.port == 11434
         except ValueError:
@@ -53,7 +57,6 @@ class OllamaClient:
 
         if not isinstance(self.model, str) or not self.model.strip():
             raise ValueError("Model name must be a non-empty string.")
-
         if (
             not isinstance(timeout, (int, float))
             or isinstance(timeout, bool)
@@ -61,35 +64,32 @@ class OllamaClient:
         ):
             raise ValueError("Timeout must be a positive number.")
 
-    def generate(self, prompt):
-        """Generate one bounded response; never retry or stream requests."""
+    def generate(self, prompt, profile="balanced"):
+        """Generate one bounded response using fast, balanced, or deep budget."""
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("Prompt must be a non-empty string.")
-
-        prompt_bytes = prompt.encode("utf-8")
-        if len(prompt_bytes) > MAX_PROMPT_BYTES:
+        if len(prompt.encode("utf-8")) > MAX_PROMPT_BYTES:
             raise ValueError(
                 f"Prompt exceeds the {MAX_PROMPT_BYTES}-byte limit."
             )
-
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "keep_alive": "30s",
-            "options": generation_options(),
-        }
-        request = Request(
-            f"{self.endpoint}/api/generate",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
+        if profile not in {"fast", "balanced", "deep"}:
+            raise ValueError("profile must be fast, balanced, or deep")
 
         try:
-            # The process-wide slot prevents concurrent calls from multiplying
-            # model memory use. The RAM check runs immediately before inference.
-            with inference_slot():
+            with inference_slot() as free_mb:
+                payload = {
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "keep_alive": "30s",
+                    "options": generation_options(profile, free_mb),
+                }
+                request = Request(
+                    f"{self.endpoint}/api/generate",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
                 with urlopen(request, timeout=self.timeout) as response:
                     raw_response = response.read(MAX_RESPONSE_BYTES + 1)
         except HTTPError as exc:
@@ -105,17 +105,14 @@ class OllamaClient:
             raise OllamaClientError(
                 f"Ollama response exceeds the {MAX_RESPONSE_BYTES}-byte limit."
             )
-
         try:
             result = json.loads(raw_response.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise OllamaClientError(
                 "Ollama returned invalid JSON or text encoding."
             ) from exc
-
         if not isinstance(result, dict):
             raise OllamaClientError("Ollama response must be a JSON object.")
-
         text = result.get("response")
         if not isinstance(text, str):
             raise OllamaClientError(
