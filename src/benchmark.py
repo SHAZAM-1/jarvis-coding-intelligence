@@ -6,8 +6,13 @@ client. Results are smoke-test signals, not a statistically valid accuracy
 benchmark and not proof that generated code works.
 """
 
+import argparse
+import json
+import sys
 from dataclasses import dataclass
 from time import perf_counter
+
+from src.model_client import DEFAULT_MODEL, OllamaClient
 
 
 @dataclass(frozen=True)
@@ -97,6 +102,7 @@ def run_benchmark(client, tasks=BENCHMARK_TASKS):
     passed = sum(result["passed"] for result in results)
     return {
         "benchmark_type": "deterministic_coding_smoke_checks",
+        "model": getattr(client, "model", None),
         "tasks_total": len(results),
         "tasks_passed": passed,
         "tasks_failed": len(results) - passed,
@@ -109,3 +115,44 @@ def run_benchmark(client, tasks=BENCHMARK_TASKS):
             "A single run is not a statistically valid model accuracy comparison.",
         ],
     }
+
+
+def main(argv=None):
+    """Run only when the user explicitly supplies --run; never download models."""
+    parser = argparse.ArgumentParser(
+        description="Run three small coding smoke checks against local Ollama."
+    )
+    parser.add_argument(
+        "--run",
+        action="store_true",
+        help="explicitly allow three local inference requests",
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help="already-installed Ollama model name (no model is downloaded)",
+    )
+    args = parser.parse_args(argv)
+
+    if not args.run:
+        parser.print_help()
+        print(
+            "\nNo inference was run. Re-run with --run only when enough RAM "
+            "is available.",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        client = OllamaClient(model=args.model)
+    except (TypeError, ValueError) as exc:
+        print(f"Invalid benchmark configuration: {type(exc).__name__}", file=sys.stderr)
+        return 2
+
+    report = run_benchmark(client)
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    return 0 if report["tasks_passed"] == report["tasks_total"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
