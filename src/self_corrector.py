@@ -1,6 +1,8 @@
-"""Bounded, proposal-only code correction."""
+"""Bounded, proposal-only code correction with resource-aware reasoning."""
 
 from src.error_analyzer import analyze_error
+from src.resource_guard import available_memory_mb
+from src.task_router import choose_profile
 
 
 class CorrectionLimitReached(RuntimeError):
@@ -30,9 +32,7 @@ class SelfCorrector:
         if not isinstance(failure_output, str):
             raise TypeError("failure_output must be a string")
         if not failure_output.strip():
-            raise ValueError(
-                "failure_output must contain the actual failure"
-            )
+            raise ValueError("failure_output must contain the actual failure")
         if self.attempts_used >= self.max_attempts:
             raise CorrectionLimitReached(
                 "Correction attempt limit reached. Review the evidence "
@@ -41,11 +41,20 @@ class SelfCorrector:
 
         report = analyze_error(failure_output)
         next_attempt = self.attempts_used + 1
+        profile = choose_profile(
+            task,
+            failure_output,
+            available_ram_mb=available_memory_mb(),
+        )
         prompt = f"""
 You are the correction component of Jarvis Coding Intelligence.
-Produce a cautious, evidence-based code correction proposal.
+Use careful, evidence-based reasoning, but do not expose hidden chain-of-thought.
+Give a concise conclusion supported by concrete evidence. Separate facts,
+hypotheses, and unknowns. Check edge cases and likely regressions before
+recommending a fix.
 
 Attempt: {next_attempt} of {self.max_attempts}
+Reasoning budget: {profile}
 CODING TASK:
 {task}
 CURRENT CODE:
@@ -58,19 +67,21 @@ ACTUAL FAILURE OUTPUT:
 {report["evidence"]}
 
 REQUIREMENTS:
-1. Explain the likely cause and distinguish facts from hypotheses.
-2. Propose the smallest reasonable correction.
+1. Identify the likely root cause and distinguish facts from hypotheses.
+2. Propose the smallest reasonable correction and explain why it addresses
+   the observed failure.
 3. Return the complete replacement for the relevant code unit.
-4. Include regression tests for this failure.
+4. Include focused regression tests and relevant edge cases.
 5. Never claim tests passed unless actually executed.
 6. Do not invent files, dependencies, APIs, or test results.
-7. If evidence is insufficient, say what information is missing.
+7. If evidence is insufficient, state exactly what is missing.
 8. Do not request credentials, secrets, or unrelated private files.
 9. Do not suggest destructive Git operations.
 10. This is a proposal only; do not claim to have changed files.
 
 Structure your answer as:
 CAUSE:
+EVIDENCE:
 PROPOSED FIX:
 REGRESSION TESTS:
 VERIFICATION REQUIRED:
@@ -78,11 +89,12 @@ UNCERTAINTIES:
 """.strip()
 
         self.attempts_used = next_attempt
-        proposal = self.client.generate(prompt)
+        proposal = self.client.generate(prompt, profile=profile)
         return {
             "attempt": next_attempt,
             "maximum_attempts": self.max_attempts,
             "error_category": report["category"],
+            "reasoning_profile": profile,
             "proposal": proposal,
             "verified": False,
             "applied": False,

@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Runtime learning records must remain local and untracked.
+data/learning_ledger.jsonl
