@@ -4,7 +4,6 @@ import os
 import unittest
 from unittest.mock import patch
 
-from src import resource_guard
 from src.resource_guard import (
     ResourceLimitError,
     ensure_memory_headroom,
@@ -37,6 +36,24 @@ class ResourceGuardTests(unittest.TestCase):
         self.assertEqual(options["num_batch"], 128)
         self.assertEqual(options["num_thread"], 2)
 
+    def test_fast_profile_uses_smaller_budget(self):
+        options = generation_options("fast", 3072)
+        self.assertEqual(options["num_ctx"], 1024)
+        self.assertEqual(options["num_predict"], 192)
+        self.assertEqual(options["num_batch"], 64)
+
+    def test_deep_profile_uses_larger_budget_with_headroom(self):
+        options = generation_options("deep", 3072)
+        self.assertEqual(options["num_ctx"], 4096)
+        self.assertEqual(options["num_predict"], 768)
+
+    def test_deep_profile_downgrades_with_tight_or_unknown_memory(self):
+        for free_mb in (None, 1700):
+            with self.subTest(free_mb=free_mb):
+                options = generation_options("deep", free_mb)
+                self.assertEqual(options["num_ctx"], 2048)
+                self.assertEqual(options["num_predict"], 384)
+
     def test_generation_options_are_clamped(self):
         settings = {
             "JARVIS_OLLAMA_NUM_CTX": "999999",
@@ -45,7 +62,7 @@ class ResourceGuardTests(unittest.TestCase):
             "JARVIS_OLLAMA_NUM_THREAD": "999999",
         }
         with patch.dict(os.environ, settings, clear=True):
-            options = generation_options()
+            options = generation_options("deep", 3072)
         self.assertEqual(options["num_ctx"], 4096)
         self.assertEqual(options["num_predict"], 1024)
         self.assertEqual(options["num_batch"], 256)
