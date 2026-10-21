@@ -1,7 +1,7 @@
 """Tests for bounded, proposal-only self-correction."""
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from src.self_corrector import CorrectionLimitReached, SelfCorrector
 
