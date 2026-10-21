@@ -8,15 +8,11 @@ debugging/review tasks can receive a larger budget when memory permits.
 import re
 
 
-PROFILES = {"fast", "balanced", "deep"}
-
-
 def choose_profile(task, failure_output="", available_ram_mb=None):
     """Select fast/balanced/deep from task complexity and available RAM."""
     task = task if isinstance(task, str) else ""
     failure_output = failure_output if isinstance(failure_output, str) else ""
-    combined = f"{task}
-{failure_output}".lower()
+    combined = f"{task}\n{failure_output}".lower()
 
     complexity_signals = (
         "root cause", "race condition", "security", "deadlock",
