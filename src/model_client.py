@@ -1,6 +1,7 @@
 """Minimal, local-only Ollama client with a conservative resource budget."""
 
 import json
+import math
 import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -13,6 +14,7 @@ DEFAULT_MODEL = "huihui_ai/qwen2.5-coder-abliterate:3b"
 DEFAULT_ENDPOINT = "http://127.0.0.1:11434"
 MAX_PROMPT_BYTES = 131072
 MAX_RESPONSE_BYTES = 1048576
+MAX_TIMEOUT_SECONDS = 600
 
 
 class OllamaClientError(RuntimeError):
@@ -56,8 +58,14 @@ class OllamaClient:
             not isinstance(timeout, (int, float))
             or isinstance(timeout, bool)
             or timeout <= 0
+            or timeout > MAX_TIMEOUT_SECONDS
+            or not math.isfinite(timeout)
         ):
-            raise ValueError("Timeout must be a positive number.")
+            raise ValueError(
+                f"Timeout must be finite, greater than 0, and at most "
+                f"{MAX_TIMEOUT_SECONDS} seconds."
+            )
+        self.timeout = float(timeout)
 
     def generate(self, prompt, profile="balanced"):
         """Generate one bounded response using fast, balanced, or deep budget."""
