@@ -3,9 +3,6 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-# Runtime learning records may contain project-derived metadata; do not commit them.
-data/learning_ledger.jsonl
-
 # C extensions
 *.so
 
@@ -30,6 +27,7 @@ share/python-wheels/
 MANIFEST
 
 # PyInstaller
+#   Usually these files are written from a template before PyInstaller bundles an app.
 *.manifest
 *.spec
 
@@ -57,60 +55,134 @@ cover/
 *.mo
 *.pot
 
-# Django and Flask
+# Django stuff:
+*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+
+# Flask stuff:
 instance/
 .webassets-cache
 
-# Scrapy and Sphinx
+# Scrapy stuff:
 .scrapy
+
+# Sphinx documentation
 docs/_build/
 
-# PyBuilder and Jupyter
+# PyBuilder
 .pybuilder/
 target/
+
+# Jupyter Notebook
 .ipynb_checkpoints
 
 # IPython
 profile_default/
 ipython_config.py
 
-# Environments and package tools
+# pyenv
+# .python-version
+
+# pipenv
+# Pipfile.lock
+
+# uv
+# uv.lock
+
+# poetry
+# poetry.lock
+# poetry.toml
+
+# pdm
 .pdm-python
 .pdm-build/
+
+# pixi
 .pixi/*
 !.pixi/config.toml
+
+# PEP 582
 __pypackages__/
-.venv/
-venv/
-ENV/
-env/
+
+# Celery stuff
+celerybeat-schedule*
+celerybeat.pid
+
+# Redis
+*.rdb
+*.aof
+*.pid
+
+# RabbitMQ
+mnesia/
+rabbitmq/
+rabbitmq-data/
+
+# ActiveMQ
+activemq-data/
+
+# SageMath
+*.sage.py
+
+# Environments
 .env
 .envrc
+.venv
+env/
+venv/
+ENV/
 env.bak/
 venv.bak/
-.tox/
-.nox/
 
-# Caches
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs/Zensical
+/site
+
+# mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
-.pyre/
-.pytype/
-cython_debug/
-.ruff_cache/
 
-# IDEs and temporary files
-.spyderproject
-.spyproject
-.ropeproject
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm / IDEs
 .idea/
 .vscode/
+
+# Abstra
+.abstra/
+
+# Temporary file for partial code execution
 tempCodeRunnerFile.py
+
+# Ruff
+.ruff_cache/
+
+# PyPI configuration
 .pypirc
+
+# Marimo
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Runtime learning records must remain local and untracked.
+data/learning_ledger.jsonl
