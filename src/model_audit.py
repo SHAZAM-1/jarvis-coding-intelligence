@@ -6,6 +6,7 @@ Only loopback HTTP endpoints on port 11434 are permitted.
 from __future__ import annotations
 
 import json
+import math
 import socket
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -71,11 +72,15 @@ class OllamaReadOnlyAudit:
         if not isinstance(selected_model, str) or not selected_model.strip():
             raise AuditError("Selected model must be a non-empty string.")
         if not isinstance(timeout, (int, float)) or isinstance(timeout, bool):
-            raise AuditError("Timeout must be a positive number.")
-        if timeout <= 0 or timeout > 60:
-            raise AuditError("Timeout must be greater than 0 and at most 60 seconds.")
+            raise AuditError("Timeout must be a finite positive number.")
+        try:
+            timeout_value = float(timeout)
+        except (OverflowError, ValueError) as exc:
+            raise AuditError("Timeout must be a finite positive number.") from exc
+        if not math.isfinite(timeout_value) or timeout_value <= 0 or timeout_value > 60:
+            raise AuditError("Timeout must be finite, greater than 0, and at most 60 seconds.")
         self.selected_model = selected_model.strip()
-        self.timeout = float(timeout)
+        self.timeout = timeout_value
 
     def _request_json(self, path: str, payload: dict | None = None) -> dict:
         if not path.startswith("/") or ".." in path.split("/"):
