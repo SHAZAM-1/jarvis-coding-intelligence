@@ -64,7 +64,7 @@ class ModelAuditTests(unittest.TestCase):
             validate_local_endpoint("http://127.0.0.1:11434/api")
 
     def test_rejects_invalid_timeout(self):
-        for timeout in (0, -1, 61, True, "5"):
+        for timeout in (0, -1, 61, float("nan"), float("inf"), True, "5", 10 ** 1000):
             with self.subTest(timeout=timeout):
                 with self.assertRaises(AuditError):
                     OllamaReadOnlyAudit(timeout=timeout)
