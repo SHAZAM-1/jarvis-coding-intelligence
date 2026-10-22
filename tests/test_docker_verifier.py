@@ -56,6 +56,11 @@ class DockerFunctionVerifierTests(unittest.TestCase):
         )
         child_source = ast.literal_eval(assignment.value)
         ast.parse(child_source)
+        # Structural regression guard: a per-case timeout must attempt to
+        # terminate candidate descendants before proceeding to the next case.
+        self.assertIn("start_new_session=True", _RUNNER_SOURCE)
+        self.assertIn("os.killpg(child.pid, signal.SIGKILL)", _RUNNER_SOURCE)
+        self.assertIn('{"case": index, "reason": "timeout"}', _RUNNER_SOURCE)
 
     def test_configuration_rejects_invalid_function_and_image(self):
         with self.assertRaises(ValueError):
