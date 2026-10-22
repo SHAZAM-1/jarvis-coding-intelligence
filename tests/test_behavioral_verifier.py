@@ -220,7 +220,9 @@ class BehavioralVerifierTests(unittest.TestCase):
             run_func=run_func,
             popen_factory=popen_factory,
         )
-        with self.assertRaisesRegex(VerificationUnavailableError, "Docker is unavailable"):
+        with self.assertRaisesRegex(
+            VerificationUnavailableError, "Docker is unavailable"
+        ):
             verifier.verify(SOURCE, "add", CASES, allow_execution=True)
         popen_factory.assert_not_called()
 
