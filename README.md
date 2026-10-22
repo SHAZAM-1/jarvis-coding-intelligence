@@ -26,11 +26,12 @@ Windows or Ollama will never use high CPU or RAM. If measured available RAM is
 below 1536 MiB, inference is paused before a request is sent. This default
 threshold is configurable as documented below.
 
-The correction workflow is an initial end-to-end slice, not behavioral
-self-correction. It extracts exactly one fenced Python candidate, parses it
-without executing it, and records SYNTAX_VALID only when that parse succeeds.
-It never applies or executes candidate code. A syntax-valid candidate is not
-a verified fix. Caller-supplied VERIFIED status/evidence is rejected; the only
+The normal correction workflow is proposal/syntax-only, not automatic
+behavioral self-correction. It extracts exactly one fenced Python candidate,
+parses it without executing it, and records SYNTAX_VALID only when that parse
+succeeds. It never applies candidate code. A syntax-valid candidate is not a
+verified fix. A separate verify_behavior method supports explicit opt-in
+Docker checks; normal run never invokes it automatically. Caller-supplied VERIFIED status/evidence is rejected; the only
 promotion path is a receipt from the opt-in Docker behavioral verifier after all
 declared cases pass. The verifier has not yet been exercised against a real
 Docker daemon/image, so sandbox integration remains unverified.
@@ -98,6 +99,13 @@ and larger values are rejected during client construction.
 If the response has no single candidate block, it is recorded as UNVERIFIED.
 A syntax failure is also UNVERIFIED; successful parsing produces SYNTAX_VALID.
 The workflow does not write candidate code into project files.
+
+For an explicit behavioral check, configure a BehavioralVerifier with a
+digest-pinned image already present locally, then call
+CorrectionWorkflow.verify_behavior(..., allow_execution=True). The method is
+not called by normal run(). It fails closed if Docker/image/RAM prerequisites
+are missing, does not pull images, and never falls back to host execution.
+Real Docker integration and Windows resource measurements remain pending.
 
 Run the deterministic workflow tests:
 
