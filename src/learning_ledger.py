@@ -126,7 +126,8 @@ class LearningLedger:
             or not receipt.image_digest
         ):
             raise LearningLedgerError(
-                "VERIFIED requires a complete successful behavioral-verification receipt."
+                "VERIFIED requires a complete successful behavioral "
+                "verification receipt."
             )
         return self._append_record(
             verification["sha256"],
