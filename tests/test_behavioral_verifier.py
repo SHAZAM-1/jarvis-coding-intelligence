@@ -184,7 +184,9 @@ class BehavioralVerifierTests(unittest.TestCase):
 
     def test_missing_local_image_fails_without_running_candidate(self):
         verifier = self.make_verifier(image_rc=1)
-        with self.assertRaisesRegex(VerificationUnavailableError, "not available locally"):
+        with self.assertRaisesRegex(
+            VerificationUnavailableError, "not available locally"
+        ):
             verifier.verify(SOURCE, "add", CASES, allow_execution=True)
         self.assertIsNone(self.command)
 
@@ -206,7 +208,12 @@ class BehavioralVerifierTests(unittest.TestCase):
 
     def test_invalid_case_manifest_is_rejected_before_docker(self):
         verifier = self.make_verifier()
-        for cases in ([], [{"args": [], "kwargs": {}}], [{"args": [object()], "kwargs": {}, "expected": 1}]):
+        invalid_cases = (
+            [],
+            [{"args": [], "kwargs": {}}],
+            [{"args": [object()], "kwargs": {}, "expected": 1}],
+        )
+        for cases in invalid_cases:
             with self.subTest(cases=cases):
                 with self.assertRaises(ValueError):
                     verifier.verify(SOURCE, "add", cases, allow_execution=True)
