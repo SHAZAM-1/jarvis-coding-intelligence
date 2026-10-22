@@ -329,7 +329,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | LR-04 | Privacy | Retrieval returns compact records only; no source code or test inputs are stored by the API | Covered by ledger record tests | Keep summaries bounded/redacted |
 | LR-05 | Learning effectiveness | No semantic retrieval or future-task improvement is claimed | Not measured | Build a no-retrieval baseline before adding semantic search |
 
-**Current phase result: IMPLEMENTED, CI PENDING.** This is schema-checked recency/category retrieval, not semantic search. It cannot prove that a local JSONL file has never been manually modified. Real Docker integration and measured benefit to future corrections remain pending.
+**Current phase result: IMPLEMENTED, CI PASSED.** PR #13 passed 130 unit tests across Python 3.10–3.13. This is schema-checked recency/category retrieval, not semantic search. It cannot prove that a local JSONL file has never been manually modified. Real Docker integration and measured benefit to future corrections remain pending.
 
 ## 16. Structured untrusted-input prompt boundary — 2026-10-22
 
