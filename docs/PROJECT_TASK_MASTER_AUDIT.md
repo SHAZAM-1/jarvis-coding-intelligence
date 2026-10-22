@@ -53,6 +53,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; CI run #122 passed 102 tests | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
 | [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
 | [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI run #185 passed 127 tests on Python 3.10–3.13 | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
+| [#13 — Bounded verified lesson retrieval](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/13) | Verified lesson retrieval | Draft PR open; CI run #197 passed 130 tests on Python 3.10–3.13 | Returns only recent structurally valid VERIFIED records; local ledger remains non-tamper-proof |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -327,7 +328,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | LR-04 | Privacy | Retrieval returns compact records only; no source code or test inputs are stored by the API | Covered by ledger record tests | Keep summaries bounded/redacted |
 | LR-05 | Learning effectiveness | No semantic retrieval or future-task improvement is claimed | Not measured | Build a no-retrieval baseline before adding semantic search |
 
-**Current phase result: IMPLEMENTED, CI PENDING.** This is schema-checked recency/category retrieval, not semantic search. It cannot prove that a local JSONL file has never been manually modified. Real Docker integration and measured benefit to future corrections remain pending.
+**Current phase result: IMPLEMENTED, CI PASSED.** PR #13 passed 130 unit tests across Python 3.10–3.13. This is schema-checked recency/category retrieval, not semantic search. It cannot prove that a local JSONL file has never been manually modified. Real Docker integration and measured benefit to future corrections remain pending.
 
 ## Final recommendation
 
