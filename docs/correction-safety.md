@@ -14,8 +14,8 @@
 - Maximum of two proposal attempts per correction session.
 - Non-executing Python syntax parsing with a source hash.
 - Append-only JSONL learning ledger with compact hashes, bounded summaries,
-  common secret-like text redaction, conservative UNVERIFIED/SYNTAX_VALID status,
-  and VERIFIED disabled until trusted behavioral verification exists.
+  common secret-like text redaction, independently parsed SYNTAX_VALID status,
+  and VERIFIED gated by a verifier-issued behavioral receipt.
 - No automatic file changes or execution of generated code.
 
 ## Resource guard limitations
@@ -40,11 +40,12 @@ are not stored.
 The public append API accepts only UNVERIFIED records and rejects caller-
 supplied verification dictionaries. SYNTAX_VALID is available only through a
 dedicated method that independently parses the source before recording its
-hash. Direct caller assignment of SYNTAX_VALID is rejected. VERIFIED is
-currently disabled; it must not be restored until a trusted behavioral
-verifier runs controlled tests and captures its own results. Do not store
-secrets or private source in summaries. Redaction is best-effort, not a
-guarantee.
+hash. Direct caller assignment of SYNTAX_VALID/VERIFIED is rejected. VERIFIED
+can be recorded only through a dedicated ledger method using a receipt issued
+by the opt-in Docker behavioral verifier after all declared cases pass. The
+verifier is unit-tested with mocked Docker calls, but a real sandbox run and
+Windows resource measurement remain pending. Do not store secrets or private
+source in summaries. Redaction is best-effort, not a guarantee.
 
 A model proposal is not proof of a fix. Syntax validity is not behavioral
 correctness. Before accepting a proposal, an independent verification stage
