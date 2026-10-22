@@ -65,18 +65,40 @@ class LearningLedger:
         status="UNVERIFIED",
         verification=None,
     ):
-        """Append one record; raw source and raw failure output are never stored."""
+        """Append an UNVERIFIED record; caller-supplied proof is never trusted."""
         if status == "VERIFIED":
             raise LearningLedgerError(
                 "VERIFIED status is reserved until a trusted behavioral "
                 "verifier can supply its own evidence."
             )
-        if status not in STATUSES:
-            raise LearningLedgerError(f"status must be one of {sorted(STATUSES)}")
+        if status != "UNVERIFIED":
+            raise LearningLedgerError(
+                "Only UNVERIFIED may be requested directly; use "
+                "append_syntax_valid_record for independently parsed source."
+            )
         if verification is not None:
             raise LearningLedgerError(
                 "Caller-supplied verification evidence is not accepted."
             )
+        return self._append_record(
+            source_sha256, category, summary, status="UNVERIFIED"
+        )
+
+    def append_syntax_valid_record(self, source, category, summary):
+        """Independently parse source before allowing a SYNTAX_VALID record."""
+        verification = verify_python_source(source)
+        if not verification["syntax_valid"]:
+            raise LearningLedgerError(
+                "Cannot record SYNTAX_VALID: Python syntax parsing failed."
+            )
+        return self._append_record(
+            verification["sha256"], category, summary, status="SYNTAX_VALID"
+        )
+
+    def _append_record(self, source_sha256, category, summary, status):
+        """Persist a validated record without storing source or failure output."""
+        if status not in STATUSES:
+            raise LearningLedgerError(f"status must be one of {sorted(STATUSES)}")
         source_sha256 = _validate_hash(source_sha256)
         if not isinstance(category, str) or category not in _CATEGORIES:
             raise LearningLedgerError("category must be a recognized diagnostic category.")
@@ -89,7 +111,7 @@ class LearningLedger:
             "summary": _safe_text(summary, 240),
             "status": status,
         }
-        encoded = (json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n")
+        encoded = json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n"
         parent = os.path.dirname(os.path.abspath(self.path))
         os.makedirs(parent, exist_ok=True)
         with _WRITE_LOCK:
