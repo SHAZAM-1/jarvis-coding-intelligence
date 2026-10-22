@@ -100,7 +100,7 @@ The workflow does not write candidate code into project files.
 Run the deterministic workflow tests:
 
 ```powershell
-python -m unittest tests.test_correction_workflow tests.test_learning_ledger tests.test_self_corrector -v
+python -m unittest discover -s tests -p 'test_correction_workflow.py' -v
 ```
 
 ## Learning ledger and evidence policy
