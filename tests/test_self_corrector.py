@@ -30,6 +30,10 @@ class SelfCorrectorTests(unittest.TestCase):
             self.client.generate.call_args.kwargs["profile"],
             result["reasoning_profile"],
         )
+        self.assertIn(
+            "exactly one fenced Python code block under PROPOSED FIX",
+            self.client.generate.call_args.args[0],
+        )
 
     def test_second_attempt_is_allowed(self):
         corrector = SelfCorrector(self.client, max_attempts=2)
