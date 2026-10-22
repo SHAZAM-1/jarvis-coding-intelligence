@@ -33,7 +33,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-13 | Model-quality evaluation | Incomplete | No reliable evidence updates improved general coding accuracy | Establish baseline and broaden benchmark | Critical |
 | P-14 | Integration into main | Incomplete | Features remain in stacked draft PRs | Verify dependencies and integrate safely | High |
 | P-15 | Real-model resource benchmark | Pending | Inference deliberately avoided because prior RAM headroom was low | Recheck RAM before inference | Critical |
-| P-16 | Docker behavioral verifier | Implemented on feature branch; CI/local checks pending | Opt-in Docker-only runner, pinned image digest, JSON test cases, bounded output/timeout, host-side expected-output comparison, typed receipt | Run CI, inspect command/safety tests, then opt-in real-Docker test only with preloaded image and fresh RAM preflight | Critical |
+| P-16 | Docker behavioral verifier | Implemented on feature branch in draft PR #11; CI/local checks pending | Opt-in Docker-only runner, pinned image digest, JSON test cases, bounded output/timeout, host-side expected-output comparison, typed receipt | Run CI, inspect command/safety tests, then opt-in real-Docker test only with preloaded image and fresh RAM preflight | Critical |
 
 ### 1.1 Known pull-request stack
 
@@ -51,7 +51,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#8 — Full project task master audit](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/8) | Project audit document | Draft, unmerged | Full task/status tables and dependency-ordered roadmap |
 | [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI runs #115 and #117 passed (102 tests on Python 3.10–3.13) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
 | [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; CI run #122 passed 102 tests | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
-| [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Planned PR number; branch implementation in progress | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
+| [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI pending on latest head | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -180,7 +180,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
 | W-12 | Model accuracy comparison | Pending | No comparable results | Benchmark under controlled settings |
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
-| W-14 | Safe behavioral-test isolation | Runner implemented on feature branch; CI pending; no real Docker run | Docker-only, opt-in, no-pull design for declarative JSON cases; unit tests use a fake process | Verify CI, then review opt-in integration on a preloaded image |
+| W-14 | Safe behavioral-test isolation | Runner implemented on feature branch in draft PR #11; CI pending; no real Docker run | Docker-only, opt-in, no-pull design for declarative JSON cases; unit tests use a fake process | Verify CI, then review opt-in integration on a preloaded image |
 | W-16 | Receipt-gated VERIFIED ledger | Implemented on feature branch; CI pending | Public status assignment blocked; ledger requires verifier-issued receipt bound to source hash | Test forged, failed, mismatched, and successful receipts; keep real Docker integration pending |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
 
