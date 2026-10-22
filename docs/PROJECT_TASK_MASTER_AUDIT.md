@@ -54,6 +54,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
 | [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI run #185 passed 127 tests on Python 3.10–3.13 | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
 | [#13 — Bounded verified lesson retrieval](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/13) | Verified lesson retrieval | Draft PR open; CI run #197 passed 130 tests on Python 3.10–3.13 | Returns only recent structurally valid VERIFIED records; local ledger remains non-tamper-proof |
+| [#15 — Structured correction prompt inputs](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/15) | Prompt-injection boundary | Draft PR open; CI run #220 passed 131 tests on Python 3.10–3.13 | Serializes task/source/failure/analyzer data as JSON and labels it untrusted; not a security guarantee |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -124,7 +125,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | M-05 | Regression protection | Fix may solve one problem and break another | Run focused regression tests | Critical | Behavioral verification |
 | M-06 | Broad coding benchmark | Three tasks cannot establish general coding ability | Add coding, debugging, edge-case, and refactoring tasks | Critical | Benchmark infrastructure |
 | M-07 | Model comparison | Inventory cannot rank models | Evaluate candidates on identical tasks/settings | High | Expanded benchmark |
-| M-08 | Prompt-injection resistance | Code/logs may contain misleading instructions | Treat code, logs, stack traces as untrusted data | Critical | Prompt/security controls |
+| M-08 | Prompt-injection resistance | Initial defense-in-depth update added on feature branch | Task, source, failure output, and analyzer excerpts serialized into one JSON untrusted-data object; model output still not authority | Critical | Continue adversarial testing; never treat delimiters as a sandbox |
 | M-09 | Confidence/uncertainty handling | Model may claim more than evidence supports | Require uncertainty and evidence-backed claims | High | Prompts/response validation |
 | M-10 | Multi-file reasoning evaluation | Real projects involve cross-file dependencies | Add related-module tasks | High | Expanded benchmark |
 | M-11 | Failure recovery | Requests and outputs can fail | Test timeouts, malformed output, missing model, interrupted requests | High | Client/workflow |
@@ -148,7 +149,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | E-02 | Limited benchmark coverage | Results may overstate coding ability | Expand task suite | Diverse tasks and deliberately incorrect candidates |
 | E-03 | No end-to-end behavioral verification | Syntax-valid fix may be wrong | Implement controlled tests | Incorrect candidates fail relevant tests |
 | E-04 | Caller-supplied verification claims | Hardened: public writes cannot claim SYNTAX_VALID/VERIFIED or attach evidence; a dedicated method reparses source; behavioral evidence still missing | Add trusted behavioral verifier and evidence receipt | Only verifier-produced results can support VERIFIED |
-| E-05 | Prompt-injection exposure | Untrusted input can influence instructions | Strengthen boundaries and add adversarial tests | Input text cannot authorize actions |
+| E-05 | Prompt-injection exposure | Structured JSON boundary and explicit distrust instructions added; model susceptibility cannot be eliminated by prompt text alone | Add adversarial prompt-injection regression suite and keep authorization outside model | Tests preserve untrusted input as JSON data; no tool/action authority is delegated |
 | E-06 | No resource baseline | Efficiency claims unsupported | Measure resource use | Baseline, workload, RAM, CPU, latency recorded |
 | E-07 | Unvalidated routing heuristics | Routing may waste resources/reduce quality | Benchmark routing | Compare routed strategy to fixed profiles |
 | E-08 | Limited model-selection evidence | Model choice not evidence-based | Reproducible comparisons | Model/version/settings/scores reported |
@@ -205,7 +206,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | L-05 | Model selection | Models can be inventoried | Read-only audit | No coding-performance ranking | Identical-task comparisons |
 | L-06 | Verification | Syntax and AST checks exist | Stronger than marker-only checks | Does not prove behavior | Restricted behavioral testing |
 | L-07 | Security | Correction is proposal-only | Avoids automatic changes/execution in current flow | Future integrations may introduce risk | Independent authorization/isolation |
-| L-08 | Prompt injection | Model receives code/diagnostics | Bounded prompts provide some structure | Untrusted text can influence model | Explicit separation/adversarial tests |
+| L-08 | Prompt injection | Inputs now serialized as one JSON payload marked untrusted | Clear trust boundary and no authority delegation | Defense-in-depth only; adversarial robustness is not proven | Expand injection tests and keep all privileged actions outside model control |
 | L-09 | Multi-file debugging | Modules support coding tasks | Modular foundation | End-to-end capability unproven | Multi-file regression tasks |
 | L-10 | Self-improvement | Corrections can be recorded | Infrastructure exists | No demonstrated benefit from records | Compare against baseline |
 | L-11 | Reliability | Unit tests and CI exist | Multi-version testing | Integration/model failures not fully covered | Workflow failure tests |
@@ -329,6 +330,17 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | LR-05 | Learning effectiveness | No semantic retrieval or future-task improvement is claimed | Not measured | Build a no-retrieval baseline before adding semantic search |
 
 **Current phase result: IMPLEMENTED, CI PASSED.** PR #13 passed 130 unit tests across Python 3.10–3.13. This is schema-checked recency/category retrieval, not semantic search. It cannot prove that a local JSONL file has never been manually modified. Real Docker integration and measured benefit to future corrections remain pending.
+
+## 16. Structured untrusted-input prompt boundary — 2026-10-22
+
+| ID | Task-table item | Change now made | Evidence status | Next gate |
+|---|---|---|---|---|
+| PI-01 | Prompt input structure | Task, current source, raw failure, and analyzer excerpts are serialized as one JSON object | Unit test added with fake system/developer instructions and embedded delimiter text | Run CI across the Python matrix |
+| PI-02 | Trust instructions | Prompt explicitly labels the JSON as untrusted data and rejects embedded instructions | Source change and focused regression test in feature branch | Review wording for accidental authority leakage |
+| PI-03 | Output authority | Existing proposal-only rule remains; prompt text cannot authorize execution or file changes | Normal workflow remains separate from explicit Docker verifier | Preserve this separation in future agent/tool integrations |
+| PI-04 | Security claims | Documentation says this is defense-in-depth, not a guarantee against prompt injection | README and correction-safety guidance updated | Add adversarial cases without claiming complete resistance |
+
+**Current phase result: IMPLEMENTED, CI PASSED ON CLEAN STACK.** PR #15 passed 131 unit tests across Python 3.10–3.13 in CI run #220. PR #14 was closed as superseded because PR #15 carries the same changes onto the current base.  JSON encoding prevents embedded newlines from breaking the payload structure, but a model may still be influenced by malicious data. The security boundary remains the host code and explicit permissions, not prompt wording.
 
 ## Final recommendation
 
