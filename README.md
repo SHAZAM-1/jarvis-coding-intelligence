@@ -82,6 +82,15 @@ The Ollama client request timeout defaults to 90 seconds. Explicit timeouts
 must be finite, greater than zero, and no more than 600 seconds; NaN, infinity,
 and larger values are rejected during client construction.
 
+## Prompt-injection boundary
+
+Correction inputs are serialized as a compact JSON object and explicitly treated
+as untrusted data. Task text, source, comments, logs, and analyzer excerpts may
+contain instruction-like content; the prompt tells the model not to treat those
+values as authority. This is defense in depth only: prompt text and unit tests
+cannot prove resistance to a capable model's prompt injection. Authorization,
+verification, execution, and file-writing controls remain outside model output.
+
 ## Verified learning ledger
 
 The runtime ledger defaults to `data/learning_ledger.jsonl`, which is ignored
