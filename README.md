@@ -31,7 +31,7 @@ see [the resource-efficiency and quality policy](docs/RESOURCE_EFFICIENCY_AND_QU
 
 These features do not yet constitute behavioral self-correction or a reliable
 coding-model accuracy benchmark. The smoke checks validate selected Python AST
-structures for the three built-in tasks; they do not execute generated code or
+structures for the five built-in tasks; they do not execute generated code or
 prove full semantic correctness. The ledger records caller-supplied evidence
 but does not run tests itself and cannot prove that evidence is genuine. No
 candidate model is considered stronger until it is tested on the same
