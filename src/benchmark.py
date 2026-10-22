@@ -50,6 +50,23 @@ BENCHMARK_TASKS = (
         ),
         required_markers=("[", "for", "in numbers", "** 2"),
     ),
+    BenchmarkTask(
+        task_id="python_is_even",
+        prompt=(
+            "Write only a synchronous Python function is_even(n) that returns "
+            "True exactly when n is even, using n modulo 2."
+        ),
+        required_markers=("def is_even(", "return", "% 2", "== 0"),
+    ),
+    BenchmarkTask(
+        task_id="python_safe_divide",
+        prompt=(
+            "Write only a synchronous Python function safe_divide(a, b). "
+            "Return None when b equals zero; otherwise return a divided by b. "
+            "Use an if statement with an explicit else branch."
+        ),
+        required_markers=("def safe_divide(", "if", "return None", "/"),
+    ),
 )
 
 
@@ -122,6 +139,91 @@ def _ast_issues(response, task_id):
         ):
             return ["the optional default must be None"]
         return []
+
+    if task_id == "python_is_even":
+        if len(tree.body) != 1 or not isinstance(tree.body[0], ast.FunctionDef):
+            return ["expected exactly one synchronous function definition"]
+        function = tree.body[0]
+        if function.name != "is_even" or len(function.args.args) != 1:
+            return ["expected function is_even(n)"]
+        if (
+            [arg.arg for arg in function.args.args] != ["n"]
+            or function.args.posonlyargs
+            or function.args.vararg
+            or function.args.kwonlyargs
+            or function.args.kwarg
+            or function.args.defaults
+            or function.args.kw_defaults
+            or function.decorator_list
+        ):
+            return ["expected exactly one plain parameter: n"]
+        if len(function.body) != 1 or not isinstance(function.body[0], ast.Return):
+            return ["expected one direct return statement"]
+        value = function.body[0].value
+        valid = (
+            isinstance(value, ast.Compare)
+            and len(value.ops) == 1
+            and isinstance(value.ops[0], ast.Eq)
+            and len(value.comparators) == 1
+            and isinstance(value.left, ast.BinOp)
+            and isinstance(value.left.op, ast.Mod)
+            and isinstance(value.left.left, ast.Name)
+            and value.left.left.id == "n"
+            and isinstance(value.left.right, ast.Constant)
+            and value.left.right.value == 2
+            and isinstance(value.comparators[0], ast.Constant)
+            and value.comparators[0].value == 0
+        )
+        return [] if valid else ["expected n % 2 == 0"]
+
+    if task_id == "python_safe_divide":
+        if len(tree.body) != 1 or not isinstance(tree.body[0], ast.FunctionDef):
+            return ["expected exactly one synchronous function definition"]
+        function = tree.body[0]
+        if function.name != "safe_divide" or [arg.arg for arg in function.args.args] != ["a", "b"]:
+            return ["expected function safe_divide(a, b)"]
+        if (
+            function.args.posonlyargs
+            or function.args.vararg
+            or function.args.kwonlyargs
+            or function.args.kwarg
+            or function.args.defaults
+            or function.args.kw_defaults
+            or function.decorator_list
+        ):
+            return ["expected exactly two plain parameters: a and b"]
+        if len(function.body) != 1 or not isinstance(function.body[0], ast.If):
+            return ["expected one if statement with explicit else branch"]
+        statement = function.body[0]
+        condition = (
+            isinstance(statement.test, ast.Compare)
+            and isinstance(statement.test.left, ast.Name)
+            and statement.test.left.id == "b"
+            and len(statement.test.ops) == 1
+            and isinstance(statement.test.ops[0], ast.Eq)
+            and len(statement.test.comparators) == 1
+            and isinstance(statement.test.comparators[0], ast.Constant)
+            and statement.test.comparators[0].value == 0
+        )
+        safe_return = (
+            len(statement.body) == 1
+            and isinstance(statement.body[0], ast.Return)
+            and isinstance(statement.body[0].value, ast.Constant)
+            and statement.body[0].value.value is None
+        )
+        divide_return = (
+            len(statement.orelse) == 1
+            and isinstance(statement.orelse[0], ast.Return)
+            and isinstance(statement.orelse[0].value, ast.BinOp)
+            and isinstance(statement.orelse[0].value.op, ast.Div)
+            and isinstance(statement.orelse[0].value.left, ast.Name)
+            and statement.orelse[0].value.left.id == "a"
+            and isinstance(statement.orelse[0].value.right, ast.Name)
+            and statement.orelse[0].value.right.id == "b"
+        )
+        return [] if condition and safe_return and divide_return else [
+            "expected if b == 0: return None; else: return a / b"
+        ]
 
     if task_id == "python_list_comprehension":
         if len(tree.body) != 1 or not isinstance(tree.body[0], ast.Expr):
