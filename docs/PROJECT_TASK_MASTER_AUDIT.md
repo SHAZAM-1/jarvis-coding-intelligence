@@ -10,7 +10,7 @@
 
 Jarvis has a useful modular foundation: local Ollama client, resource guard, heuristic task router, error analyzer, bounded correction proposals, non-executing Python syntax checks, learning ledger, model inventory, and opt-in coding smoke benchmark.
 
-The main limitation is **integration and evidence**. The components do not yet form a complete end-to-end process that reliably distinguishes a proposed fix from a behaviorally correct, independently verified fix and then records evidence for future reuse. The three-task benchmark is a smoke check, not a general coding-ability measure.
+The main limitation is **behavioral verification and evidence**. A first end-to-end slice now connects a bounded proposal, single-candidate extraction, non-executing syntax verification, and conservative ledger recording. It deliberately does not execute or apply candidate code, and it does not claim behavioral correctness. The three-task benchmark remains a smoke check, not a general coding-ability measure.
 
 Recommended order: verify the latest branch locally; review stacked PR dependencies; integrate correction with safe verification; make learning records evidence-backed; expand behavioral benchmarking; measure resource use; compare model/routing choices only after repeatable measurements; then integrate reviewed changes into main without bypassing safeguards.
 
@@ -25,11 +25,11 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-05 | Error analyzer | Implemented | Classifies common errors; ambiguous/unseen errors can be misclassified | Expand tests and preserve unknown cases | High |
 | P-06 | Self-correction engine | Implemented | Produces bounded proposals; does not apply changes or prove correctness | Connect proposals to independent verification | Critical |
 | P-07 | Syntax verification | Implemented | Parses Python without executing it | Keep as an early gate; add separate behavioral testing | Critical |
-| P-08 | Learning ledger | Implemented | Append-only records, bounded summaries, secret-like text redaction | Derive status from actual evidence; add safe retrieval | Critical |
+| P-08 | Learning ledger | Implemented; evidence policy hardened on feature branch | Append-only records, bounded summaries, redaction; caller-supplied VERIFIED claims now rejected | Add trusted behavioral-verifier receipts and safe retrieval | Critical |
 | P-09 | Coding smoke benchmark | Implemented in draft PR | Three fixed tasks; narrow coverage | Expand into behavioral benchmark | Critical |
 | P-10 | AST validation | Implemented in draft PR | Checks structure for built-in benchmark tasks | Verify locally; extend regression coverage | High |
 | P-11 | Strict AST/audit-timeout checks | Implemented in PR #7 | GitHub Actions passed on recorded head; local verification still outstanding in latest known status | Run local tests and inspect Git status | High |
-| P-12 | End-to-end correction workflow | Not implemented end to end | Components are not connected into a complete verified-learning lifecycle | Design workflow coordinator | Critical |
+| P-12 | Correction-to-ledger workflow | Initial implementation on feature branch; not yet CI-verified or merged | Connects proposal, single fenced candidate, syntax parse, and hash-linked ledger record; no execution/application | Add independent behavioral verification and validate through CI | Critical |
 | P-13 | Model-quality evaluation | Incomplete | No reliable evidence updates improved general coding accuracy | Establish baseline and broaden benchmark | Critical |
 | P-14 | Integration into main | Incomplete | Features remain in stacked draft PRs | Verify dependencies and integrate safely | High |
 | P-15 | Real-model resource benchmark | Pending | Inference deliberately avoided because prior RAM headroom was low | Recheck RAM before inference | Critical |
@@ -47,6 +47,8 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#5 — Deterministic coding smoke benchmark](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/5) | Initial benchmark | Draft, CI passed on recorded head | Three opt-in coding tasks |
 | [#6 — Python AST validation](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/6) | Structural checks | Draft, CI passed on recorded head | AST checks for benchmark output |
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
+| [#8 — Full project task master audit](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/8) | Project audit document | Draft, unmerged | Full task/status tables and dependency-ordered roadmap |
+| [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Planned PR number; not yet opened at time of this edit | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -110,9 +112,9 @@ These require reproducible experiments. Orchestration changes should not be desc
 
 | ID | Missing capability | Why it matters | Required implementation | Priority | Dependency |
 |---|---|---|---|---|---|
-| M-01 | End-to-end correction workflow | Components do not form a complete verified process | Connect diagnosis, proposal, validation, verification, recording | Critical | Core modules |
+| M-01 | Full behavioral correction workflow | Initial syntax-only slice now connects proposal, candidate parsing, and ledger recording | Add trusted, isolated behavioral verification and regression checks | Critical | Core modules and safe execution isolation |
 | M-02 | Behavioral verification | Correct syntax does not guarantee behavior | Run trusted tests in controlled environment | Critical | Verification architecture |
-| M-03 | Independent verification evidence | Caller-supplied metadata is not proof | Capture results from actual verification | Critical | Verification runner |
+| M-03 | Independent behavioral verification evidence | Ledger no longer accepts caller-supplied VERIFIED status/evidence; only syntax outcomes are currently recorded by the workflow | Capture test results from a trusted verifier that actually ran them | Critical | Verification runner and execution isolation |
 | M-04 | Verified lesson retrieval | Stored lessons are not a complete learning mechanism | Retrieve relevant validated lessons with bounded context | Critical | Learning ledger |
 | M-05 | Regression protection | Fix may solve one problem and break another | Run focused regression tests | Critical | Behavioral verification |
 | M-06 | Broad coding benchmark | Three tasks cannot establish general coding ability | Add coding, debugging, edge-case, and refactoring tasks | Critical | Benchmark infrastructure |
@@ -140,7 +142,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | E-01 | Missing workflow integration | No complete verification lifecycle | Build workflow coordinator | Explicit stages/states from proposal through result |
 | E-02 | Limited benchmark coverage | Results may overstate coding ability | Expand task suite | Diverse tasks and deliberately incorrect candidates |
 | E-03 | No end-to-end behavioral verification | Syntax-valid fix may be wrong | Implement controlled tests | Incorrect candidates fail relevant tests |
-| E-04 | Caller-supplied verification claims | Ledger status may mislead | Capture verification evidence directly | Status derives from recorded verifier results |
+| E-04 | Caller-supplied verification claims | Hardened: new writes cannot use VERIFIED or attach caller-supplied evidence; behavioral evidence still missing | Add trusted behavioral verifier and evidence receipt | Only verifier-produced results can support VERIFIED |
 | E-05 | Prompt-injection exposure | Untrusted input can influence instructions | Strengthen boundaries and add adversarial tests | Input text cannot authorize actions |
 | E-06 | No resource baseline | Efficiency claims unsupported | Measure resource use | Baseline, workload, RAM, CPU, latency recorded |
 | E-07 | Unvalidated routing heuristics | Routing may waste resources/reduce quality | Benchmark routing | Compare routed strategy to fixed profiles |
@@ -169,8 +171,8 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-05 | Initial coding benchmark | Draft PR #5 | CI passed on recorded head | Expand tasks |
 | W-06 | AST validation | Draft PR #6 | CI passed on recorded head | Verify latest branch and expand checks |
 | W-07 | Strict AST/audit-timeout validation | Draft PR #7 | CI passed on recorded head | Run local tests and inspect status |
-| W-08 | Correction-to-verification integration | Not completed | Modules exist | Implement coordinator |
-| W-09 | Evidence-backed learning | Incomplete | Ledger exists; metadata caller-supplied | Derive records from actual verification |
+| W-08 | Correction-to-ledger workflow | Implemented on feature branch; awaiting CI/local verification | New coordinator and focused tests added; no code execution | Verify CI, inspect PR diff, then add isolated behavioral testing |
+| W-09 | Evidence-backed learning | Partial: syntax evidence now generated by workflow; caller-supplied VERIFIED claims rejected | Syntax result is tied to candidate hash; no behavioral verification receipt yet | Add trusted behavioral verifier and retrieval |
 | W-10 | Behavioral benchmark | Planned | Current benchmark is smoke test | Build broader suite |
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
 | W-12 | Model accuracy comparison | Pending | No comparable results | Benchmark under controlled settings |
@@ -192,7 +194,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 |---|---|---|---|---|---|
 | L-01 | Model correctness | Responses can be wrong | Bounded correction and validation infrastructure | No complete behavioral verification | Independent tests |
 | L-02 | Reasoning quality | Prompts request evidence/edge cases | Better instructions and routing | No demonstrated accuracy gain | Representative task comparison |
-| L-03 | Learning | Lessons can be stored | Append-only ledger/summaries | No verified retrieval cycle | Feed verified outcomes into future tasks |
+| L-03 | Learning | Syntax-only results can now be stored by the workflow | Append-only ledger; caller-supplied VERIFIED claims rejected | No behavioral verifier or verified retrieval cycle |
 | L-04 | Resource efficiency | Profiles and RAM checks exist | Bounded settings/preflight | Savings unmeasured | Controlled resource benchmark |
 | L-05 | Model selection | Models can be inventoried | Read-only audit | No coding-performance ranking | Identical-task comparisons |
 | L-06 | Verification | Syntax and AST checks exist | Stronger than marker-only checks | Does not prove behavior | Restricted behavioral testing |
@@ -254,6 +256,20 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | Security boundary | Model text cannot authorize execution, file modification, or privileged actions |
 | PR integration | Correct parents, combined diffs, tests, and CI verified; no safety gate bypassed |
 | Accuracy claim | Improvement demonstrated against baseline on representative, preferably held-out tasks |
+
+## 11. Implementation update — 2026-10-22
+
+| ID | Task-table item | Change now made | Evidence status | Next gate |
+|---|---|---|---|---|
+| IMP-01 | Correction workflow | Added `src/correction_workflow.py` to connect the existing corrector, strict single-fenced-Python extraction, syntax parsing, and ledger recording | Source committed to feature branch; CI not yet checked | Run focused and full unit tests in CI |
+| IMP-02 | Candidate output contract | Updated the correction prompt to request exactly one fenced Python candidate | Source change committed; behavior not yet independently tested on a real model | Unit-test prompt contract; avoid inference until RAM preflight |
+| IMP-03 | Evidence honesty | Ledger now rejects caller-supplied VERIFIED status and arbitrary verification dictionaries | Regression tests updated; CI pending | Confirm tests pass and no call sites depend on caller-supplied VERIFIED |
+| IMP-04 | Syntax-only evidence | Syntax-valid candidate is recorded as SYNTAX_VALID with candidate SHA-256; malformed/missing candidates stay UNVERIFIED | Focused tests added; CI pending | Verify hash, status, and privacy behavior |
+| IMP-05 | Execution safety | Workflow explicitly does not apply or execute proposed code | Covered by API flags and tests; CI pending | Keep behavioral execution out until isolation design is reviewed |
+| IMP-06 | Behavioral verification | Not implemented yet | No behavioral correctness claim is made | Design restricted runner with clear platform limits and no inherited secrets |
+| IMP-07 | Task table maintenance | Status rows and roadmap updated to reflect partial implementation | Documentation change in the same feature branch | Update statuses again after CI and review |
+
+**Current phase result: PARTIAL.** The proposal → syntax check → conservative ledger slice is implemented in the branch, but is not yet independently CI-verified, not merged, and not behaviorally verified. Do not label a candidate as a verified fix.
 
 ## Final recommendation
 
