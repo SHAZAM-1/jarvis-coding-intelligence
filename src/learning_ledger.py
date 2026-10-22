@@ -1,7 +1,8 @@
-"""Append-only ledger for compact, evidence-labelled coding lessons.
+"""Append-only ledger for compact lessons with conservative evidence labels.
 
-The ledger records caller-supplied verification metadata. It does not itself
-execute tests or prove that a command was genuinely run.
+Only the dedicated syntax-recording method may set SYNTAX_VALID, and it parses
+the source itself. This ledger does not execute candidate code; VERIFIED is
+reserved until a trusted behavioral verifier can produce its own evidence.
 """
 
 import hashlib
@@ -11,8 +12,10 @@ import re
 import threading
 from datetime import datetime
 
+from src.verification_runner import verify_python_source
 
-STATUSES = {"UNVERIFIED", "SYNTAX_VALID", "VERIFIED"}
+
+STATUSES = {"UNVERIFIED", "SYNTAX_VALID"}
 _CATEGORIES = {
     "missing_import", "syntax_error", "missing_attribute", "missing_key",
     "type_error", "assertion_failure", "timeout", "connection_error",
@@ -48,40 +51,6 @@ def _validate_hash(source_sha256):
     return source_sha256
 
 
-def _verification_evidence(evidence):
-    if not isinstance(evidence, dict):
-        raise LearningLedgerError("VERIFIED records require verification evidence.")
-
-    commands = evidence.get("commands")
-    exit_code = evidence.get("exit_code")
-    test_count = evidence.get("test_count")
-    timestamp = evidence.get("timestamp")
-
-    if (
-        not isinstance(commands, list)
-        or not commands
-        or any(not isinstance(command, str) or not command.strip() for command in commands)
-    ):
-        raise LearningLedgerError("Verification requires at least one test command.")
-    if exit_code != 0 or isinstance(exit_code, bool):
-        raise LearningLedgerError("Verification requires exit_code=0.")
-    if not isinstance(test_count, int) or isinstance(test_count, bool) or test_count < 1:
-        raise LearningLedgerError("Verification requires test_count >= 1.")
-    if not isinstance(timestamp, str):
-        raise LearningLedgerError("Verification requires an ISO timestamp.")
-    try:
-        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise LearningLedgerError("Verification timestamp must be ISO-8601.") from exc
-
-    return {
-        "commands": [_safe_text(command, 200) for command in commands[:3]],
-        "exit_code": 0,
-        "test_count": test_count,
-        "timestamp": timestamp,
-    }
-
-
 class LearningLedger:
     """Append compact, privacy-conscious lesson records as JSON Lines."""
 
@@ -98,7 +67,38 @@ class LearningLedger:
         status="UNVERIFIED",
         verification=None,
     ):
-        """Append one record; raw source and raw failure output are never stored."""
+        """Append an UNVERIFIED record; caller-supplied proof is never trusted."""
+        if status == "VERIFIED":
+            raise LearningLedgerError(
+                "VERIFIED status is reserved until a trusted behavioral "
+                "verifier can supply its own evidence."
+            )
+        if status != "UNVERIFIED":
+            raise LearningLedgerError(
+                "Only UNVERIFIED may be requested directly; use "
+                "append_syntax_valid_record for independently parsed source."
+            )
+        if verification is not None:
+            raise LearningLedgerError(
+                "Caller-supplied verification evidence is not accepted."
+            )
+        return self._append_record(
+            source_sha256, category, summary, status="UNVERIFIED"
+        )
+
+    def append_syntax_valid_record(self, source, category, summary):
+        """Independently parse source before allowing a SYNTAX_VALID record."""
+        verification = verify_python_source(source)
+        if not verification["syntax_valid"]:
+            raise LearningLedgerError(
+                "Cannot record SYNTAX_VALID: Python syntax parsing failed."
+            )
+        return self._append_record(
+            verification["sha256"], category, summary, status="SYNTAX_VALID"
+        )
+
+    def _append_record(self, source_sha256, category, summary, status):
+        """Persist a validated record without storing source or failure output."""
         if status not in STATUSES:
             raise LearningLedgerError(f"status must be one of {sorted(STATUSES)}")
         source_sha256 = _validate_hash(source_sha256)
@@ -113,16 +113,7 @@ class LearningLedger:
             "summary": _safe_text(summary, 240),
             "status": status,
         }
-        if status == "VERIFIED":
-            record["verification"] = _verification_evidence(verification)
-        elif verification is not None:
-            # Preserve evidence only for explicitly verified records, avoiding
-            # misleading partial proof on other statuses.
-            raise LearningLedgerError(
-                "verification evidence is accepted only for VERIFIED records."
-            )
-
-        encoded = (json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n")
+        encoded = json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n"
         parent = os.path.dirname(os.path.abspath(self.path))
         os.makedirs(parent, exist_ok=True)
         with _WRITE_LOCK:

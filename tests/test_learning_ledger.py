@@ -1,5 +1,6 @@
 """Tests for the append-only learning ledger."""
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -9,12 +10,6 @@ from src.learning_ledger import LearningLedger, LearningLedgerError
 
 
 HASH = "a" * 64
-VALID_EVIDENCE = {
-    "commands": ["python -m unittest tests.test_example -v"],
-    "exit_code": 0,
-    "test_count": 4,
-    "timestamp": "2026-10-21T02:00:00Z",
-}
 
 
 class LearningLedgerTests(unittest.TestCase):
@@ -34,27 +29,53 @@ class LearningLedgerTests(unittest.TestCase):
         saved = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(saved["source_sha256"], HASH)
 
-    def test_verified_requires_successful_test_evidence(self):
-        with self.assertRaises(LearningLedgerError):
+    def test_verified_status_is_reserved_for_trusted_behavioral_verifier(self):
+        with self.assertRaisesRegex(
+            LearningLedgerError, "trusted behavioral verifier"
+        ):
             self.ledger.append_record(
                 HASH, "test_error", "fixed", status="VERIFIED"
             )
 
-    def test_verified_record_accepts_explicit_evidence(self):
-        record = self.ledger.append_record(
-            HASH, "test_error", "Regression covered",
-            status="VERIFIED", verification=VALID_EVIDENCE,
-        )
-        self.assertEqual(record["status"], "VERIFIED")
-        self.assertEqual(record["verification"]["exit_code"], 0)
-        self.assertEqual(record["verification"]["test_count"], 4)
-
-    def test_nonzero_exit_code_is_rejected(self):
-        evidence = dict(VALID_EVIDENCE, exit_code=1)
-        with self.assertRaises(LearningLedgerError):
+    def test_direct_syntax_valid_status_is_rejected(self):
+        with self.assertRaisesRegex(
+            LearningLedgerError, "append_syntax_valid_record"
+        ):
             self.ledger.append_record(
-                HASH, "test_error", "not fixed",
-                status="VERIFIED", verification=evidence,
+                HASH, "syntax_error", "claimed syntax pass",
+                status="SYNTAX_VALID",
+            )
+
+    def test_ledger_independently_parses_before_syntax_valid_status(self):
+        source = "def add(a, b):\n    return a + b\n"
+        record = self.ledger.append_syntax_valid_record(
+            source, "assertion_failure", "Syntax checked by ledger"
+        )
+        self.assertEqual(record["status"], "SYNTAX_VALID")
+        self.assertEqual(
+            record["source_sha256"],
+            hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        )
+
+    def test_ledger_rejects_invalid_source_for_syntax_valid_status(self):
+        with self.assertRaisesRegex(LearningLedgerError, "syntax parsing failed"):
+            self.ledger.append_syntax_valid_record(
+                "def add(:\n    return 1\n",
+                "syntax_error",
+                "This source is invalid",
+            )
+
+    def test_caller_supplied_verification_evidence_is_rejected(self):
+        evidence = {
+            "commands": ["python -m unittest"],
+            "exit_code": 0,
+            "test_count": 4,
+            "timestamp": "2026-10-21T02:00:00Z",
+        }
+        with self.assertRaisesRegex(LearningLedgerError, "Caller-supplied"):
+            self.ledger.append_record(
+                HASH, "test_error", "claimed pass",
+                status="UNVERIFIED", verification=evidence,
             )
 
     def test_invalid_hash_is_rejected(self):

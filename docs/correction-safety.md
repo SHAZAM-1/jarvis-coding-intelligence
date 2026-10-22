@@ -14,7 +14,8 @@
 - Maximum of two proposal attempts per correction session.
 - Non-executing Python syntax parsing with a source hash.
 - Append-only JSONL learning ledger with compact hashes, bounded summaries,
-  common secret-like text redaction, and evidence-gated VERIFIED status.
+  common secret-like text redaction, conservative UNVERIFIED/SYNTAX_VALID status,
+  and VERIFIED disabled until trusted behavioral verification exists.
 - No automatic file changes or execution of generated code.
 
 ## Resource guard limitations
@@ -33,15 +34,17 @@ not cap total system CPU use.
 
 The default runtime ledger is data/learning_ledger.jsonl and is ignored by
 Git. Records store a source SHA-256 hash, a bounded summary, a diagnostic
-category, a status, and (for VERIFIED records) caller-supplied verification
-metadata. Raw source code and raw failure output are not stored.
+category, and a conservative status. Raw source code and raw failure output
+are not stored.
 
-A record can be UNVERIFIED, SYNTAX_VALID, or VERIFIED. VERIFIED records require
-at least one command, a zero exit code, a positive test count, and an ISO
-timestamp. This is an evidence gate, not proof that the caller actually
-executed the command; the ledger does not run tests and is not tamper-proof.
-Do not store secrets or private source in summaries. Redaction is best-effort,
-not a guarantee.
+The public append API accepts only UNVERIFIED records and rejects caller-
+supplied verification dictionaries. SYNTAX_VALID is available only through a
+dedicated method that independently parses the source before recording its
+hash. Direct caller assignment of SYNTAX_VALID is rejected. VERIFIED is
+currently disabled; it must not be restored until a trusted behavioral
+verifier runs controlled tests and captures its own results. Do not store
+secrets or private source in summaries. Redaction is best-effort, not a
+guarantee.
 
 A model proposal is not proof of a fix. Syntax validity is not behavioral
 correctness. Before accepting a proposal, an independent verification stage
