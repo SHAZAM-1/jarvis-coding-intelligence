@@ -24,6 +24,11 @@ Windows or Ollama will never use high CPU or RAM. If measured available RAM is
 below 1536 MiB, inference is paused before a request is sent. This default
 threshold is configurable as documented below.
 
+**Engineering policy:** Resource efficiency must not silently degrade reasoning,
+coding accuracy, debugging reliability, security, or verification. Material
+optimizations require a reproducible baseline and quality/performance comparison;
+see [the resource-efficiency and quality policy](docs/RESOURCE_EFFICIENCY_AND_QUALITY.md).
+
 These features do not yet constitute behavioral self-correction or a reliable
 coding-model accuracy benchmark. The smoke checks validate selected Python AST
 structures for the three built-in tasks; they do not execute generated code or
