@@ -70,8 +70,11 @@ REQUIREMENTS:
 1. Identify the likely root cause and distinguish facts from hypotheses.
 2. Propose the smallest reasonable correction and explain why it addresses
    the observed failure.
-3. Return the complete replacement for the relevant code unit.
-4. Include focused regression tests and relevant edge cases.
+3. Put the complete proposed Python replacement in exactly one fenced
+   ```python code block. Do not include other Python code blocks. If you
+   cannot provide a complete candidate, say so instead of inventing one.
+4. Include focused regression tests and relevant edge cases outside the
+   candidate code block.
 5. Never claim tests passed unless actually executed.
 6. Do not invent files, dependencies, APIs, or test results.
 7. If evidence is insufficient, state exactly what is missing.
