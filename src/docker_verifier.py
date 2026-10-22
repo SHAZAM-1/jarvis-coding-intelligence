@@ -17,6 +17,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
+from src.resource_guard import available_memory_mb, minimum_free_ram_mb
 from src.verification_runner import MAX_SOURCE_BYTES, verify_python_source
 
 _MAX_CASES = 50
@@ -226,6 +227,24 @@ if __name__ == "__main__":
 '''
 
 
+def _ensure_docker_memory_headroom():
+    """Fail closed unless enough host RAM is available for a Docker run."""
+    free_mb = available_memory_mb()
+    minimum_mb = minimum_free_ram_mb()
+    if free_mb is None:
+        raise VerifierUnavailableError(
+            "Docker behavioral verification blocked: available RAM could not be "
+            "measured; no Docker command was run."
+        )
+    if free_mb < minimum_mb:
+        raise VerifierUnavailableError(
+            "Docker behavioral verification blocked: only "
+            f"{free_mb} MiB RAM is available; at least {minimum_mb} MiB is "
+            "required. No Docker container was started."
+        )
+    return free_mb
+
+
 def _cleanup_container(docker_executable, container_name):
     """Best-effort bounded cleanup for a container whose CLI ended unexpectedly."""
     for cleanup_args in (["kill", container_name], ["rm", "--force", container_name]):
@@ -337,6 +356,8 @@ class DockerFunctionVerifier:
         if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
             raise ValueError("Candidate source exceeds the configured byte limit.")
 
+        # Check before even querying Docker, and fail closed if RAM is unknown.
+        _ensure_docker_memory_headroom()
         inspect_result = _run_bounded(
             [self.docker_executable, "image", "inspect", self.image],
             timeout_seconds=3,
@@ -379,6 +400,9 @@ class DockerFunctionVerifier:
                 "--mount", f"type=bind,source={mount_source},target=/workspace,readonly",
                 self.image, "python", "-I", "-B", "/workspace/runner.py",
             ]
+            # Recheck just before launch because host RAM may have changed while
+            # preparing the temporary workspace and container arguments.
+            _ensure_docker_memory_headroom()
             try:
                 exit_code, output, timed_out, overflow = _run_bounded(
                     command, input_text=payload, timeout_seconds=self.timeout_seconds,

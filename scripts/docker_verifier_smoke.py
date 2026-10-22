@@ -7,9 +7,7 @@ import argparse
 import hashlib
 
 from src.docker_verifier import DockerFunctionVerifier, DockerVerifierError
-from src.resource_guard import available_memory_mb
-
-MIN_FREE_RAM_MB = 1536
+from src.resource_guard import available_memory_mb, minimum_free_ram_mb
 SOURCE = "def add(a, b):\n    return a + b\n"
 TEST_CASES = [
     {"args": [1, 2], "kwargs": {}, "expected": 3},
@@ -39,10 +37,11 @@ def main(argv=None):
         return 2
 
     free_ram_mb = available_memory_mb()
-    if free_ram_mb is None or free_ram_mb < MIN_FREE_RAM_MB:
+    minimum_ram_mb = minimum_free_ram_mb()
+    if free_ram_mb is None or free_ram_mb < minimum_ram_mb:
         print(
             "BLOCKED: available RAM is unknown or below "
-            f"{MIN_FREE_RAM_MB} MiB; no Docker command was run."
+            f"{minimum_ram_mb} MiB; no Docker command was run."
         )
         return 2
 
