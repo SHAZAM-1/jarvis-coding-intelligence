@@ -137,7 +137,9 @@ class LearningLedger:
             verification=receipt.to_dict(),
         )
 
-    def _append_record(\n        self, source_sha256, category, summary, status, verification=None\n    ):
+    def _append_record(
+        self, source_sha256, category, summary, status, verification=None
+    ):
         """Persist a validated record without storing source or failure output."""
         if status not in STATUSES:
             raise LearningLedgerError(f"status must be one of {sorted(STATUSES)}")
