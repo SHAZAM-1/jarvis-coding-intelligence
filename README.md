@@ -86,6 +86,29 @@ zero exit code, a positive test count, and an ISO timestamp. The ledger does
 not execute tests and does not independently prove that supplied evidence is
 genuine. It never stores the full source code or raw failure output by design.
 
+## Correction workflow coordinator
+
+`src/correction_workflow.py` connects one bounded correction proposal to strict
+proposal extraction, Python syntax validation, optional behavioral-verifier
+handoff, and learning-ledger recording. The model must return exactly one
+fenced Python replacement in the `PROPOSED FIX` section. Ambiguous output is
+not executed or recorded as verified.
+
+Without a configured behavioral verifier, the workflow records at most
+`SYNTAX_VALID`; syntax validity is not behavioral correctness. A verifier must
+be trusted integration code that tests the exact candidate source in a suitably
+restricted environment and returns its source hash, configured verifier ID,
+run ID, test command(s), exit code, test count, check names, and timestamp.
+The coordinator checks the hash and configured identity before allowing a
+`VERIFIED` ledger record. The ledger stores that provenance in schema version 2.
+
+**Safety boundary:** The coordinator does not write or execute candidate code,
+and this repository does not yet provide a built-in sandboxed behavioral
+verifier. A test double used by unit tests verifies orchestration logic only; it
+is not evidence that real generated code passed behavioral tests. Direct ledger
+calls still cannot cryptographically prove that caller-supplied evidence is
+genuine.
+
 ## Coding smoke checks
 
 The smoke-check runner is opt-in and sends three small requests to the selected
