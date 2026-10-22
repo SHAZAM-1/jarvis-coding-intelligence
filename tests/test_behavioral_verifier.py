@@ -3,10 +3,11 @@
 import io
 import json
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
-
+from src.learning_ledger import LearningLedger, LearningLedgerError
 from src.behavioral_verifier import (
     MAX_OUTPUT_BYTES,
     BehavioralVerificationError,
@@ -109,6 +110,18 @@ class BehavioralVerifierTests(unittest.TestCase):
         self.assertEqual(sent, [{"args": [1, 2], "kwargs": {}}])
         self.assertNotIn("expected", sent[0])
 
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = LearningLedger(Path(directory) / "learning.jsonl")
+            record = ledger.append_verified_record(
+                SOURCE, "assertion_failure", "All declared cases passed",
+                result.receipt,
+            )
+            self.assertEqual(record["status"], "VERIFIED")
+            self.assertEqual(record["verification"]["case_count"], 1)
+            stored = Path(directory, "learning.jsonl").read_text(encoding="utf-8")
+            self.assertNotIn("return a + b", stored)
+            self.assertNotIn('"expected": 3', stored)
+
     def test_wrong_output_is_a_failed_behavioral_result(self):
         process = FakeProcess(b'{"ok":true,"value":4}\n')
         result = self.make_verifier(process).verify(
@@ -119,6 +132,13 @@ class BehavioralVerifierTests(unittest.TestCase):
         self.assertEqual(result.receipt.passed_count, 0)
         self.assertEqual(result.receipt.failed_count, 1)
         self.assertEqual(result.failed_case_indices, (0,))
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = LearningLedger(Path(directory) / "learning.jsonl")
+            with self.assertRaisesRegex(LearningLedgerError, "successful behavioral"):
+                ledger.append_verified_record(
+                    SOURCE, "assertion_failure", "Must not be trusted",
+                    result.receipt,
+                )
 
     def test_candidate_exception_is_a_failed_case(self):
         process = FakeProcess(b'{"ok":false,"error":"ValueError"}\n')
