@@ -16,7 +16,7 @@
 - Append-only JSONL learning ledger with compact hashes, bounded summaries,
   common secret-like text redaction, independently parsed SYNTAX_VALID status,
   and VERIFIED gated by a verifier-issued behavioral receipt.
-- No automatic file changes or execution of generated code.
+- No automatic file changes; candidate execution is separate, opt-in, and not wired into the correction workflow.
 
 ## Resource guard limitations
 
@@ -55,7 +55,9 @@ unavailable test must never be recorded as a verified success.
 
 ## Safety boundary
 
-The current syntax verifier uses Python's AST parser and never executes the
-candidate. It is not a sandbox. Running arbitrary generated code directly on
-the host would be unsafe and must not be added without a separately reviewed,
-isolated execution design.
+The syntax verifier uses Python's AST parser and never executes the candidate.
+The separate behavioral verifier is opt-in and is designed to execute only in
+a restricted Docker container with a preloaded, digest-pinned image. It has
+unit tests using a fake process, but no real Docker sandbox run has been
+performed. Never add a host-execution fallback; review the exact Docker
+configuration and test it with a preloaded image before relying on isolation.
