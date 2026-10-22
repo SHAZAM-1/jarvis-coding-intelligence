@@ -14,9 +14,9 @@
 - Maximum of two proposal attempts per correction session.
 - Non-executing Python syntax parsing with a source hash.
 - Append-only JSONL learning ledger with compact hashes, bounded summaries,
-  common secret-like text redaction, conservative UNVERIFIED/SYNTAX_VALID status,
-  and VERIFIED disabled until trusted behavioral verification exists.
-- No automatic file changes or execution of generated code.
+  common secret-like text redaction, independently parsed SYNTAX_VALID status,
+  and VERIFIED gated by a verifier-issued behavioral receipt.
+- No automatic file changes; candidate execution is separate, opt-in, and not wired into the correction workflow.
 
 ## Resource guard limitations
 
@@ -40,11 +40,12 @@ are not stored.
 The public append API accepts only UNVERIFIED records and rejects caller-
 supplied verification dictionaries. SYNTAX_VALID is available only through a
 dedicated method that independently parses the source before recording its
-hash. Direct caller assignment of SYNTAX_VALID is rejected. VERIFIED is
-currently disabled; it must not be restored until a trusted behavioral
-verifier runs controlled tests and captures its own results. Do not store
-secrets or private source in summaries. Redaction is best-effort, not a
-guarantee.
+hash. Direct caller assignment of SYNTAX_VALID/VERIFIED is rejected. VERIFIED
+can be recorded only through a dedicated ledger method using a receipt issued
+by the opt-in Docker behavioral verifier after all declared cases pass. The
+verifier is unit-tested with mocked Docker calls, but a real sandbox run and
+Windows resource measurement remain pending. Do not store secrets or private
+source in summaries. Redaction is best-effort, not a guarantee.
 
 A model proposal is not proof of a fix. Syntax validity is not behavioral
 correctness. Before accepting a proposal, an independent verification stage
@@ -54,7 +55,9 @@ unavailable test must never be recorded as a verified success.
 
 ## Safety boundary
 
-The current syntax verifier uses Python's AST parser and never executes the
-candidate. It is not a sandbox. Running arbitrary generated code directly on
-the host would be unsafe and must not be added without a separately reviewed,
-isolated execution design.
+The syntax verifier uses Python's AST parser and never executes the candidate.
+The separate behavioral verifier is opt-in and is designed to execute only in
+a restricted Docker container with a preloaded, digest-pinned image. It has
+unit tests using a fake process, but no real Docker sandbox run has been
+performed. Never add a host-execution fallback; review the exact Docker
+configuration and test it with a preloaded image before relying on isolation.

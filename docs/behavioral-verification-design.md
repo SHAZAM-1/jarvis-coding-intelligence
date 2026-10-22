@@ -54,7 +54,7 @@ A trusted controller should:
 6. Mount that workspace read-only into a restricted container.
 7. Send one input case at a time to the worker. Keep expected outputs only in the host controller; do not expose them to the candidate.
 8. Compare worker outputs with host-held expected values. Malformed output or extra stdout must be a failure.
-9. Enforce a per-case and total deadline. On timeout, explicitly stop and remove the named ephemeral container; do not leave a worker running.
+9. Enforce a strict total deadline across the bounded case set. On timeout, explicitly stop and remove the named ephemeral container; do not leave a worker running. Per-case deadlines may be added later, but must not weaken the total deadline.
 10. Build the evidence receipt from controller-observed exit state, cases actually submitted and answered, expected/actual comparison outcomes, source hash, image digest, and timestamps.
 11. Return a typed failure for every incomplete or ambiguous run. Do not retry a failing candidate automatically.
 

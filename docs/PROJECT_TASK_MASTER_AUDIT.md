@@ -33,6 +33,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-13 | Model-quality evaluation | Incomplete | No reliable evidence updates improved general coding accuracy | Establish baseline and broaden benchmark | Critical |
 | P-14 | Integration into main | Incomplete | Features remain in stacked draft PRs | Verify dependencies and integrate safely | High |
 | P-15 | Real-model resource benchmark | Pending | Inference deliberately avoided because prior RAM headroom was low | Recheck RAM before inference | Critical |
+| P-16 | Docker behavioral verifier | Implemented on feature branch in draft PR #11; CI run #167 passed 121 tests on Python 3.10–3.13; real Docker run pending | Opt-in Docker-only runner, pinned image digest, JSON test cases, bounded output/timeout, host-side expected-output comparison, typed receipt | Run CI, inspect command/safety tests, then opt-in real-Docker test only with preloaded image and fresh RAM preflight | Critical |
 
 ### 1.1 Known pull-request stack
 
@@ -49,7 +50,8 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
 | [#8 — Full project task master audit](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/8) | Project audit document | Draft, unmerged | Full task/status tables and dependency-ordered roadmap |
 | [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI runs #115 and #117 passed (102 tests on Python 3.10–3.13) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
-| [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; documentation-only, no runtime code | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
+| [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; CI run #122 passed 102 tests | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
+| [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -178,7 +180,8 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
 | W-12 | Model accuracy comparison | Pending | No comparable results | Benchmark under controlled settings |
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
-| W-14 | Safe behavioral-test isolation | Design documented in draft PR #10; runner not implemented | Docker-only, opt-in, no-pull design for declarative JSON cases; no execution performed | Review design, then implement bounded controller/worker protocol |
+| W-14 | Safe behavioral-test isolation | Runner implemented in draft PR #11; CI run #167 passed 121 tests; no real Docker run | Docker-only, opt-in, no-pull design for declarative JSON cases; unit tests use a fake process | Verify CI, then review opt-in integration on a preloaded image |
+| W-16 | Receipt-gated VERIFIED ledger | Implemented on feature branch; CI pending | Public status assignment blocked; ledger requires verifier-issued receipt bound to source hash; CI run #167 passed | Keep real Docker integration pending |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
 
 ### Current blockers
@@ -286,6 +289,20 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | BV-08 | Laptop resource assessment | Pending | 8 GB RAM; Docker host overhead is not yet measured | Fresh RAM preflight and explicit approval before integration execution |
 
 **Phase result: DESIGN READY FOR REVIEW, NOT IMPLEMENTED.** The design intentionally narrows the first behavioral verifier to JSON-compatible callable tests. It does not authorize arbitrary shell commands or direct host execution. The existing syntax-only workflow and VERIFIED lock remain in place.
+
+## 13. Behavioral verifier implementation — 2026-10-22
+
+| ID | Task-table item | Change now made | Evidence status | Next gate |
+|---|---|---|---|---|
+| BV-10 | Docker-only runner | Added an opt-in verifier that requires an immutable image digest and verifies the image is already local | CI run #167 passed 121 tests across Python 3.10–3.13; tests use a fake process and no Docker daemon was invoked | Independent code review and opt-in integration later |
+| BV-11 | Host-held expected outputs | Only args/kwargs are sent to the worker; expected values stay in the host controller | Unit test inspects the submitted JSON input | Add adversarial protocol tests and inspect the final diff |
+| BV-12 | Container restrictions | Network disabled, read-only root/workspace, non-root user, dropped capabilities, resource caps, no-new-privileges, no automatic image pull | Command-construction unit tests passed in CI; actual Docker behavior unverified | Run opt-in integration tests only with a preloaded pinned image |
+| BV-13 | Timeout/output limits | Bounded stdout/stderr, total timeout, explicit container cleanup request | Mocked timeout/overflow tests added; CI pending | Confirm latest CI and cleanup-failure behavior |
+| BV-14 | Evidence receipt | Receipt binds source hash, manifest hash, image digest, policy, counts, exit status, duration, and timestamp | Typed receipt is only trusted when issued by verifier implementation; CI passed | Keep receipt forgery, mismatch, and failed-case rejection covered |
+| BV-15 | Ledger promotion | Added receipt-gated VERIFIED method; direct status assignment remains rejected | Unit test covers successful receipt and failed receipt rejection; CI pending | Review API and keep VERIFIED gated if any concern remains |
+| BV-16 | Real sandbox validation | Not performed | No Docker invocation, image pull, or candidate execution by this assistant | Requires a fresh RAM check and opt-in test on a machine with the approved image already present |
+
+**Current phase result: IMPLEMENTATION IN PROGRESS.** The runner is designed to fail closed and does not automatically execute during normal correction. The code and tests passed CI run #155 (121 tests across Python 3.10–3.13). A real Docker integration run and Windows resource measurement remain separate, unverified steps.
 
 ## Final recommendation
 
