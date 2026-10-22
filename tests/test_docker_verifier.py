@@ -92,6 +92,34 @@ class DockerFunctionVerifierTests(unittest.TestCase):
                 self.verifier(SOURCE, source_sha256="0" * 64)
             run.assert_not_called()
 
+    @patch("src.docker_verifier.minimum_free_ram_mb", return_value=1536)
+    @patch("src.docker_verifier.available_memory_mb", return_value=700)
+    def test_low_memory_blocks_before_any_docker_command(self, _available, _minimum):
+        with patch("src.docker_verifier._run_bounded") as run:
+            with self.assertRaisesRegex(VerifierUnavailableError, "only 700 MiB"):
+                self.verifier(SOURCE, source_sha256=DIGEST)
+        run.assert_not_called()
+
+    @patch("src.docker_verifier.minimum_free_ram_mb", return_value=1536)
+    @patch("src.docker_verifier.available_memory_mb", return_value=None)
+    def test_unknown_memory_fails_closed_before_docker(self, _available, _minimum):
+        with patch("src.docker_verifier._run_bounded") as run:
+            with self.assertRaisesRegex(VerifierUnavailableError, "could not be measured"):
+                self.verifier(SOURCE, source_sha256=DIGEST)
+        run.assert_not_called()
+
+    @patch("src.docker_verifier.minimum_free_ram_mb", return_value=1536)
+    @patch("src.docker_verifier.available_memory_mb", side_effect=[2048, 700])
+    def test_memory_is_rechecked_immediately_before_container_launch(self, _available, _minimum):
+        with patch(
+            "src.docker_verifier._run_bounded",
+            return_value=(0, "", False, False),
+        ) as run:
+            with self.assertRaisesRegex(VerifierUnavailableError, "only 700 MiB"):
+                self.verifier(SOURCE, source_sha256=DIGEST)
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0][1:3], ["image", "inspect"])
+
     def test_missing_local_image_never_attempts_a_pull(self):
         with patch(
             "src.docker_verifier._run_bounded",
