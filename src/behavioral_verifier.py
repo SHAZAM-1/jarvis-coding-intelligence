@@ -224,8 +224,14 @@ class BehavioralVerifier:
             )
         if not isinstance(source, str):
             raise ValueError("source must be a string.")
-        if len(source.encode("utf-8")) > min(MAX_SOURCE_BYTES, 65536):
-            raise ValueError("candidate source exceeds the behavioral-verification limit.")
+        try:
+            source_bytes = source.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ValueError("candidate source must be valid UTF-8.") from exc
+        if len(source_bytes) > min(MAX_SOURCE_BYTES, 65536):
+            raise ValueError(
+                "candidate source exceeds the behavioral-verification limit."
+            )
         if not isinstance(entrypoint, str) or not _ENTRYPOINT.fullmatch(entrypoint):
             raise ValueError("entrypoint must be a simple Python identifier.")
 
@@ -408,20 +414,24 @@ class BehavioralVerifier:
         except subprocess.TimeoutExpired as exc:
             process.kill()
             process.wait()
-            self._cleanup_container(container_name)
-            raise BehavioralVerificationError(
-                "Sandbox timed out; container cleanup was requested."
-            ) from exc
+            cleaned = self._cleanup_container(container_name)
+            message = "Sandbox timed out."
+            if cleaned:
+                message += " Container cleanup was confirmed."
+            else:
+                message += " Container cleanup could not be confirmed."
+            raise BehavioralVerificationError(message) from exc
         finally:
             for reader in readers:
                 reader.join(timeout=1)
             writer.join(timeout=1)
 
         if overflow.is_set():
-            self._cleanup_container(container_name)
-            raise BehavioralVerificationError(
-                "Sandbox output exceeded the configured limit."
-            )
+            cleaned = self._cleanup_container(container_name)
+            message = "Sandbox output exceeded the configured limit."
+            if not cleaned:
+                message += " Container cleanup could not be confirmed."
+            raise BehavioralVerificationError(message)
         return bytes(output["stdout"]), bytes(output["stderr"]), exit_code
 
     @staticmethod
@@ -445,7 +455,10 @@ class BehavioralVerifier:
                 raise BehavioralVerificationError(
                     "Sandbox emitted malformed protocol output."
                 ) from exc
-            if not isinstance(response, dict) or response.get("ok") not in (True, False):
+            if (
+                not isinstance(response, dict)
+                or type(response.get("ok")) is not bool
+            ):
                 raise BehavioralVerificationError(
                     "Sandbox response did not match the worker protocol."
                 )
@@ -462,7 +475,7 @@ class BehavioralVerifier:
 
     def _cleanup_container(self, container_name):
         try:
-            self.run_func(
+            result = self.run_func(
                 [self.docker_executable, "rm", "-f", container_name],
                 capture_output=True,
                 text=True,
@@ -470,6 +483,8 @@ class BehavioralVerifier:
                 check=False,
             )
         except (OSError, subprocess.SubprocessError):
-            # Cleanup failure is reported by the primary failure path; never
-            # fall back to running the candidate outside the container.
-            return
+            return False
+        if result.returncode == 0:
+            return True
+        detail = (result.stderr or "").lower()
+        return "no such container" in detail or "not found" in detail
