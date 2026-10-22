@@ -176,6 +176,28 @@ class DockerFunctionVerifierTests(unittest.TestCase):
                     ["rm", "--force", container_name],
                 )
 
+    def test_unexpected_host_error_attempts_container_cleanup(self):
+        with patch(
+            "src.docker_verifier._run_bounded",
+            side_effect=[
+                (0, "", False, False),  # local image inspection
+                VerifierExecutionError("simulated host-side failure"),
+                (0, "", False, False),  # docker kill
+                (0, "", False, False),  # docker rm --force
+            ],
+        ) as run:
+            with self.assertRaisesRegex(VerifierExecutionError, "simulated host-side failure"):
+                self.verifier(SOURCE, source_sha256=DIGEST)
+
+        self.assertEqual(run.call_count, 4)
+        docker_run = run.call_args_list[1].args[0]
+        container_name = docker_run[docker_run.index("--name") + 1]
+        self.assertEqual(run.call_args_list[2].args[0][1:], ["kill", container_name])
+        self.assertEqual(
+            run.call_args_list[3].args[0][1:],
+            ["rm", "--force", container_name],
+        )
+
     def test_missing_result_marker_never_passes(self):
         with patch(
             "src.docker_verifier._run_bounded",
