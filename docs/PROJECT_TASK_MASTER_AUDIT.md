@@ -54,7 +54,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
 | [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI run #185 passed 127 tests on Python 3.10–3.13 | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
 | [#13 — Bounded verified lesson retrieval](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/13) | Verified lesson retrieval | Draft PR open; CI run #197 passed 130 tests on Python 3.10–3.13 | Returns only recent structurally valid VERIFIED records; local ledger remains non-tamper-proof |
-| [#15 — Structured correction prompt inputs](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/15) | Prompt-injection boundary | Draft PR open; CI run #218 passed 131 tests on Python 3.10–3.13 | Serializes task/source/failure/analyzer data as JSON and labels it untrusted; not a security guarantee |
+| [#15 — Structured correction prompt inputs](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/15) | Prompt-injection boundary | Draft PR open; CI run #220 passed 131 tests on Python 3.10–3.13 | Serializes task/source/failure/analyzer data as JSON and labels it untrusted; not a security guarantee |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -340,7 +340,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | PI-03 | Output authority | Existing proposal-only rule remains; prompt text cannot authorize execution or file changes | Normal workflow remains separate from explicit Docker verifier | Preserve this separation in future agent/tool integrations |
 | PI-04 | Security claims | Documentation says this is defense-in-depth, not a guarantee against prompt injection | README and correction-safety guidance updated | Add adversarial cases without claiming complete resistance |
 
-**Current phase result: IMPLEMENTED, CI PASSED ON CLEAN STACK.** PR #15 passed 131 unit tests across Python 3.10–3.13. PR #14 was closed as superseded because PR #15 carries the same changes onto the current base.  JSON encoding prevents embedded newlines from breaking the payload structure, but a model may still be influenced by malicious data. The security boundary remains the host code and explicit permissions, not prompt wording.
+**Current phase result: IMPLEMENTED, CI PASSED ON CLEAN STACK.** PR #15 passed 131 unit tests across Python 3.10–3.13 in CI run #220. PR #14 was closed as superseded because PR #15 carries the same changes onto the current base.  JSON encoding prevents embedded newlines from breaking the payload structure, but a model may still be influenced by malicious data. The security boundary remains the host code and explicit permissions, not prompt wording.
 
 ## Final recommendation
 
