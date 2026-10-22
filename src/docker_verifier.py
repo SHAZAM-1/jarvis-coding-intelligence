@@ -348,8 +348,14 @@ class DockerFunctionVerifier:
         passed = (
             exit_code == 0
             and summary.get("status") == "passed"
+            and isinstance(test_count, int)
+            and not isinstance(test_count, bool)
             and test_count == len(self.test_cases)
+            and isinstance(passed_count, int)
+            and not isinstance(passed_count, bool)
             and passed_count == test_count
+            and isinstance(failed_count, int)
+            and not isinstance(failed_count, bool)
             and failed_count == 0
         )
         return {
