@@ -234,9 +234,13 @@ class DockerFunctionVerifier:
         if (
             not isinstance(timeout_seconds, (int, float))
             or isinstance(timeout_seconds, bool)
-            or not math.isfinite(timeout_seconds)
-            or not 1 <= timeout_seconds <= 120
         ):
+            raise ValueError("timeout_seconds must be finite and between 1 and 120.")
+        try:
+            timeout_is_finite = math.isfinite(timeout_seconds)
+        except (OverflowError, TypeError):
+            timeout_is_finite = False
+        if not timeout_is_finite or not 1 <= timeout_seconds <= 120:
             raise ValueError("timeout_seconds must be finite and between 1 and 120.")
         if not isinstance(docker_executable, str) or not docker_executable.strip():
             raise ValueError("docker_executable must be a non-empty command.")
