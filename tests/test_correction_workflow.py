@@ -4,8 +4,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
+from src.docker_verifier import DockerFunctionVerifier
 from src.correction_workflow import (
     CorrectionWorkflow, ProposalExtractionError, extract_candidate_source,
 )
@@ -95,6 +96,35 @@ class CorrectionWorkflowTests(unittest.TestCase):
         self.assertEqual(saved["verification"]["source_sha256"], digest)
         self.assertEqual(saved["verification"]["verifier_id"], "isolated-test-adapter")
         self.assertEqual(saved["verification"]["run_id"], "run-0001")
+
+    def test_workflow_and_docker_verifier_integrate_with_mocked_container(self):
+        verifier = DockerFunctionVerifier(
+            "add",
+            [
+                {"args": [1, 2], "kwargs": {}, "expected": 3},
+                {"args": [-2, 5], "kwargs": {}, "expected": 3},
+            ],
+            image="python:3.12-slim",
+        )
+        summary = "JARVIS_VERIFIER_RESULT=" + json.dumps({
+            "status": "passed", "test_count": 2,
+            "passed_count": 2, "failed_count": 0, "failures": [],
+        })
+        with patch(
+            "src.docker_verifier._run_bounded",
+            side_effect=[(0, "", False, False), (0, summary, False, False)],
+        ):
+            result = CorrectionWorkflow(
+                self.corrector, self.ledger, verifier, verifier.verifier_id
+            ).run("Implement add", "pass", "AssertionError: expected sum")
+        self.assertEqual(result["status"], "verified")
+        self.assertTrue(result["verified"])
+        self.assertFalse(result["applied"])
+        self.assertEqual(result["ledger_record"]["status"], "VERIFIED")
+        self.assertEqual(
+            result["ledger_record"]["verification"]["verifier_id"],
+            verifier.verifier_id,
+        )
 
     def _evidence(self, source_hash, status="passed", verifier_id="isolated-test-adapter"):
         return {
