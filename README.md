@@ -128,8 +128,14 @@ The image must already exist locally: the adapter checks it with
 `docker image inspect` and uses `--pull=never`; it never downloads an image.
 The container has no network, a read-only root filesystem and source mount,
 256 MiB memory, 0.5 CPU, a 32-process limit, dropped capabilities, no-new-
-privileges, a bounded runtime, and bounded host-captured output. Expected values
-are held by the container-side runner and are not sent to the candidate process.
+privileges, a bounded runtime, and bounded host-captured output. On POSIX,
+the container runs as the current non-root host UID/GID so the temporary source
+workspace can remain owner-only (directory mode 0700, files mode 0600); the
+verifier refuses to start from a root host process rather than making source
+files world-readable. Windows uses the unprivileged Docker Desktop fallback and
+still requires the guarded smoke test to validate bind-mount behavior. Expected
+values are held by the container-side runner and are not sent to the candidate
+process.
 
 This is a **narrow initial verifier**, not a general project test runner. It
 cannot verify arbitrary multi-file changes or replace a repository's trusted
