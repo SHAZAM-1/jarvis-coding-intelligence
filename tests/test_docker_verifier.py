@@ -2,6 +2,7 @@
 import ast
 import hashlib
 import json
+import subprocess
 import sys
 import unittest
 from unittest.mock import patch
@@ -179,6 +180,28 @@ class DockerFunctionVerifierTests(unittest.TestCase):
         self.assertEqual(result[1].strip(), "safe-input")
         self.assertFalse(result[2])
         self.assertFalse(result[3])
+
+    def test_bounded_process_closes_pipe_handles(self):
+        processes = []
+        real_popen = subprocess.Popen
+
+        def tracked_popen(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        with patch("src.docker_verifier.subprocess.Popen", side_effect=tracked_popen):
+            result = _run_bounded(
+                [sys.executable, "-c", "import sys; print(sys.stdin.read())"],
+                "safe-input",
+                timeout_seconds=3,
+                output_limit=100,
+            )
+
+        self.assertEqual(result[0], 0)
+        self.assertEqual(len(processes), 1)
+        self.assertTrue(processes[0].stdin.closed)
+        self.assertTrue(processes[0].stdout.closed)
 
     def test_bounded_process_stops_on_output_overflow(self):
         code = "print('x' * 100000)"
