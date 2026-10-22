@@ -16,6 +16,7 @@ from src.docker_verifier import (
     VerifierUnavailableError,
     _run_bounded,
     _RUNNER_SOURCE,
+    _docker_user,
     _prepare_nonroot_workspace,
 )
 
@@ -157,11 +158,26 @@ class DockerFunctionVerifierTests(unittest.TestCase):
             "--name",
         ):
             self.assertIn(required, command)
-        self.assertIn("--user=65532:65532", command)
+        expected_user = (
+            "65532:65532"
+            if os.name == "nt"
+            else f"{os.getuid()}:{os.getgid()}"
+        )
+        self.assertIn(f"--user={expected_user}", command)
         self.assertNotIn("--user=0:0", command)
         self.assertIn("python", command)
         self.assertIn("-I", command)
         self.assertIn("-B", command)
+
+    @unittest.skipIf(os.name == "nt", "POSIX host UID/GID behavior")
+    def test_docker_user_uses_nonroot_host_identity(self):
+        self.assertEqual(_docker_user(), f"{os.getuid()}:{os.getgid()}")
+
+    @unittest.skipIf(os.name == "nt", "POSIX host UID/GID behavior")
+    @patch("src.docker_verifier.os.getuid", return_value=0)
+    def test_docker_user_refuses_root_host_to_preserve_workspace_privacy(self, _uid):
+        with self.assertRaisesRegex(VerifierUnavailableError, "runs as root"):
+            _docker_user()
 
     def test_nonroot_workspace_permissions_allow_container_reads(self):
         with tempfile.TemporaryDirectory() as workspace:
@@ -176,9 +192,9 @@ class DockerFunctionVerifierTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(candidate_path))
             self.assertTrue(os.path.isfile(runner_path))
             if os.name != "nt":
-                self.assertEqual(stat.S_IMODE(os.stat(workspace).st_mode), 0o755)
+                self.assertEqual(stat.S_IMODE(os.stat(workspace).st_mode), 0o700)
                 for path in (candidate_path, runner_path):
-                    self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o644)
+                    self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
 
     def test_malformed_success_summary_never_passes(self):
         one_case = DockerFunctionVerifier(

@@ -286,19 +286,41 @@ def _cleanup_container(docker_executable, container_name):
             pass
 
 
-def _prepare_nonroot_workspace(workspace, *file_paths):
-    """Make the bind-mounted verifier inputs readable to the unprivileged UID.
+def _docker_user():
+    """Choose a non-root container UID that can read a private POSIX workspace."""
+    if os.name == "nt":
+        # Docker Desktop ACL/bind-mount semantics differ from POSIX; retain the
+        # unprivileged fallback until the guarded Windows smoke test is run.
+        return "65532:65532"
 
-    POSIX TemporaryDirectory defaults to mode 0700, which prevents a different
-    container UID from traversing it. Do not chmod on Windows: its chmod
-    implementation maps only a subset of POSIX modes and can mark files
-    read-only in ways that interfere with temporary-directory cleanup.
+    getuid = getattr(os, "getuid", None)
+    getgid = getattr(os, "getgid", None)
+    if not callable(getuid) or not callable(getgid):
+        raise VerifierUnavailableError(
+            "Cannot safely determine a non-root container UID for the private workspace."
+        )
+    uid = getuid()
+    if uid <= 0:
+        raise VerifierUnavailableError(
+            "Docker behavioral verification refuses to expose the temporary source "
+            "workspace when the host process runs as root."
+        )
+    return f"{uid}:{getgid()}"
+
+
+def _prepare_nonroot_workspace(workspace, *file_paths):
+    """Keep temporary candidate source private while allowing its host UID to read it.
+
+    On POSIX, the container runs with the current non-root host UID/GID, so the
+    workspace and files can remain owner-only. Do not chmod on Windows: its
+    chmod implementation maps only a subset of POSIX modes and can interfere
+    with temporary-directory cleanup.
     """
     if os.name == "nt":
         return
     for path in file_paths:
-        os.chmod(path, 0o644)
-    os.chmod(workspace, 0o755)
+        os.chmod(path, 0o600)
+    os.chmod(workspace, 0o700)
 
 
 class DockerFunctionVerifier:
@@ -383,6 +405,11 @@ class DockerFunctionVerifier:
         if len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
             raise ValueError("Candidate source exceeds the configured byte limit.")
 
+        # Resolve a non-root identity before any Docker command. On POSIX this
+        # lets the workspace retain owner-only permissions instead of exposing
+        # candidate source with world-readable 0644/0755 modes.
+        container_user = _docker_user()
+
         # Check before even querying Docker, and fail closed if RAM is unknown.
         _ensure_docker_memory_headroom()
         inspect_result = _run_bounded(
@@ -421,7 +448,7 @@ class DockerFunctionVerifier:
                 "--name", container_name,
                 "--network=none", "--read-only", "--memory=256m", "--cpus=0.5",
                 "--pids-limit=32", "--cap-drop=ALL",
-                "--security-opt=no-new-privileges", "--user=65532:65532",
+                "--security-opt=no-new-privileges", f"--user={container_user}",
                 "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
                 "--env", "PYTHONDONTWRITEBYTECODE=1",
                 "--mount", f"type=bind,source={mount_source},target=/workspace,readonly",
