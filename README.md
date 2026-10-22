@@ -129,6 +129,21 @@ closed when prerequisites are missing. Unit tests mock Docker; a real sandbox
 run and Windows resource measurement remain pending. The ledger never stores
 full source code, raw failure output, or test inputs by design.
 
+## Verified lesson retrieval
+
+The learning ledger exposes `find_verified_lessons(category=None, limit=5)`
+to return recent, structurally valid VERIFIED entries. Retrieval checks the
+record schema, candidate hash, receipt fields, image digest format, successful
+case counts, and timezone-aware timestamps. It ignores malformed or
+UNVERIFIED/SYNTAX_VALID entries, scans only a bounded tail of the ledger, and
+limits the file size and requested result count.
+
+This is a conservative first retrieval mechanism, not semantic search or proof
+that a local JSONL file was never edited. Do not treat a persisted record as
+cryptographically tamper-proof. The verifier receipt records no raw source,
+test inputs, or raw output. Future semantic retrieval must preserve these
+evidence checks and should be evaluated against a no-retrieval baseline.
+
 ## Coding smoke checks
 
 The smoke-check runner is opt-in and sends three small requests to the selected
