@@ -1,4 +1,5 @@
 """Tests for DockerFunctionVerifier without requiring Docker or an image."""
+import ast
 import hashlib
 import json
 import sys
@@ -10,6 +11,7 @@ from src.docker_verifier import (
     VerifierExecutionError,
     VerifierUnavailableError,
     _run_bounded,
+    _RUNNER_SOURCE,
 )
 
 SOURCE = "def add(a, b):\n    return a + b\n"
@@ -36,6 +38,19 @@ class DockerFunctionVerifierTests(unittest.TestCase):
             ],
             image="python:3.12-slim",
         )
+
+    def test_generated_parent_and_child_runner_sources_parse(self):
+        parent_tree = ast.parse(_RUNNER_SOURCE)
+        assignment = next(
+            node for node in ast.walk(parent_tree)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "CHILD_RUNNER"
+                for target in node.targets
+            )
+        )
+        child_source = ast.literal_eval(assignment.value)
+        ast.parse(child_source)
 
     def test_configuration_rejects_invalid_function_and_image(self):
         with self.assertRaises(ValueError):
@@ -106,6 +121,22 @@ class DockerFunctionVerifierTests(unittest.TestCase):
         self.assertIn("python", command)
         self.assertIn("-I", command)
         self.assertIn("-B", command)
+
+    def test_malformed_success_summary_never_passes(self):
+        one_case = DockerFunctionVerifier(
+            "add", [{"args": [1, 2], "kwargs": {}, "expected": 3}]
+        )
+        malformed = "JARVIS_VERIFIER_RESULT=" + json.dumps({
+            "status": "passed", "test_count": True,
+            "passed_count": True, "failed_count": False, "failures": [],
+        })
+        with patch(
+            "src.docker_verifier._run_bounded",
+            side_effect=[(0, "", False, False), (0, malformed, False, False)],
+        ):
+            evidence = one_case(SOURCE, source_sha256=DIGEST)
+        self.assertEqual(evidence["status"], "failed")
+        self.assertEqual(evidence["exit_code"], 1)
 
     def test_failed_behavioral_case_returns_failed_evidence(self):
         with patch(
