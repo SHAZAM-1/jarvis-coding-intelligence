@@ -39,7 +39,7 @@ class VerifierExecutionError(DockerVerifierError):
 
 
 def _run_bounded(command, input_text=None, timeout_seconds=20, output_limit=_MAX_OUTPUT_BYTES):
-    """Run a process with bounded output, timeout, and optional text input."""
+    """Run a process with bounded output, timeout, and deterministic pipe cleanup."""
     try:
         process = subprocess.Popen(
             command,
@@ -56,7 +56,11 @@ def _run_bounded(command, input_text=None, timeout_seconds=20, output_limit=_MAX
 
     def read_output():
         while True:
-            chunk = process.stdout.read(4096)
+            try:
+                chunk = process.stdout.read(4096)
+            except (OSError, ValueError):
+                # The owner closes the pipe after bounded joins during cleanup.
+                return
             if not chunk:
                 return
             room = output_limit - len(output)
@@ -76,30 +80,48 @@ def _run_bounded(command, input_text=None, timeout_seconds=20, output_limit=_MAX
         try:
             process.stdin.write(input_text.encode("utf-8"))
             process.stdin.close()
-        except (BrokenPipeError, OSError):
+        except (BrokenPipeError, OSError, ValueError):
             return
 
     reader = threading.Thread(target=read_output, daemon=True)
-    reader.start()
     writer = None
-    if input_text is not None:
-        writer = threading.Thread(target=write_input, daemon=True)
-        writer.start()
-
     timed_out = False
     try:
-        process.wait(timeout=timeout_seconds)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        try:
-            process.kill()
-        except OSError:
-            pass
-        process.wait()
+        reader.start()
+        if input_text is not None:
+            writer = threading.Thread(target=write_input, daemon=True)
+            writer.start()
 
-    reader.join(timeout=2)
-    if writer is not None:
-        writer.join(timeout=2)
+        try:
+            process.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            try:
+                process.kill()
+            except OSError:
+                pass
+            process.wait()
+
+        reader.join(timeout=2)
+        if writer is not None:
+            writer.join(timeout=2)
+    finally:
+        # Do not leave a subprocess running if an unexpected wait/thread error
+        # occurs. Close parent-side pipes on every exit path to avoid ResourceWarning
+        # and release OS handles deterministically.
+        if process.poll() is None:
+            try:
+                process.kill()
+            except OSError:
+                pass
+            process.wait()
+
+        for pipe in (process.stdin, process.stdout):
+            if pipe is not None and not pipe.closed:
+                try:
+                    pipe.close()
+                except (OSError, ValueError):
+                    pass
 
     return (
         process.returncode,
@@ -107,7 +129,6 @@ def _run_bounded(command, input_text=None, timeout_seconds=20, output_limit=_MAX
         timed_out,
         overflow.is_set(),
     )
-
 
 _RUNNER_SOURCE = r'''import json
 import os
@@ -316,8 +337,10 @@ class DockerFunctionVerifier:
                 raise VerifierExecutionError(
                     "Temporary workspace path contains a Docker mount delimiter."
                 )
+            container_name = f"jarvis-verifier-{uuid.uuid4().hex[:20]}"
             command = [
                 self.docker_executable, "run", "--rm", "--pull=never",
+                "--name", container_name,
                 "--network=none", "--read-only", "--memory=256m", "--cpus=0.5",
                 "--pids-limit=32", "--cap-drop=ALL",
                 "--security-opt=no-new-privileges", "--user=0:0",
@@ -330,6 +353,20 @@ class DockerFunctionVerifier:
                 command, input_text=payload, timeout_seconds=self.timeout_seconds,
                 output_limit=_MAX_OUTPUT_BYTES,
             )
+            if timed_out or overflow:
+                # Killing the Docker CLI alone may leave the daemon-managed
+                # container running. Best-effort cleanup targets this unique
+                # container name and is bounded independently.
+                for cleanup_args in (["kill", container_name], ["rm", "--force", container_name]):
+                    try:
+                        _run_bounded(
+                            [self.docker_executable, *cleanup_args],
+                            timeout_seconds=3,
+                            output_limit=4096,
+                        )
+                    except DockerVerifierError:
+                        # Preserve the original timeout/output-limit failure.
+                        pass
         if timed_out:
             raise VerifierExecutionError("Docker behavioral verification timed out.")
         if overflow:

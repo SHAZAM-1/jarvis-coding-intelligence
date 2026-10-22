@@ -2,6 +2,7 @@
 import ast
 import hashlib
 import json
+import subprocess
 import sys
 import unittest
 from unittest.mock import patch
@@ -116,6 +117,7 @@ class DockerFunctionVerifierTests(unittest.TestCase):
         for required in (
             "--pull=never", "--network=none", "--read-only", "--memory=256m",
             "--pids-limit=32", "--cap-drop=ALL", "--security-opt=no-new-privileges",
+            "--name",
         ):
             self.assertIn(required, command)
         self.assertIn("python", command)
@@ -150,19 +152,29 @@ class DockerFunctionVerifierTests(unittest.TestCase):
         self.assertEqual(evidence["status"], "failed")
         self.assertEqual(evidence["exit_code"], 1)
 
-    def test_timeout_and_output_overflow_never_pass(self):
-        with patch(
-            "src.docker_verifier._run_bounded",
-            side_effect=[(0, "", False, False), (0, "", True, False)],
-        ):
-            with self.assertRaises(VerifierExecutionError):
-                self.verifier(SOURCE, source_sha256=DIGEST)
-        with patch(
-            "src.docker_verifier._run_bounded",
-            side_effect=[(0, "", False, False), (0, "", False, True)],
-        ):
-            with self.assertRaises(VerifierExecutionError):
-                self.verifier(SOURCE, source_sha256=DIGEST)
+    def test_timeout_and_output_overflow_never_pass_and_clean_container(self):
+        for run_result in ((0, "", True, False), (0, "", False, True)):
+            with self.subTest(run_result=run_result):
+                with patch(
+                    "src.docker_verifier._run_bounded",
+                    side_effect=[
+                        (0, "", False, False),  # local image inspection
+                        run_result,              # docker run
+                        (0, "", False, False),  # docker kill
+                        (0, "", False, False),  # docker rm --force
+                    ],
+                ) as run:
+                    with self.assertRaises(VerifierExecutionError):
+                        self.verifier(SOURCE, source_sha256=DIGEST)
+
+                self.assertEqual(run.call_count, 4)
+                docker_run = run.call_args_list[1].args[0]
+                container_name = docker_run[docker_run.index("--name") + 1]
+                self.assertEqual(run.call_args_list[2].args[0][1:], ["kill", container_name])
+                self.assertEqual(
+                    run.call_args_list[3].args[0][1:],
+                    ["rm", "--force", container_name],
+                )
 
     def test_missing_result_marker_never_passes(self):
         with patch(
@@ -179,6 +191,28 @@ class DockerFunctionVerifierTests(unittest.TestCase):
         self.assertEqual(result[1].strip(), "safe-input")
         self.assertFalse(result[2])
         self.assertFalse(result[3])
+
+    def test_bounded_process_closes_pipe_handles(self):
+        processes = []
+        real_popen = subprocess.Popen
+
+        def tracked_popen(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        with patch("src.docker_verifier.subprocess.Popen", side_effect=tracked_popen):
+            result = _run_bounded(
+                [sys.executable, "-c", "import sys; print(sys.stdin.read())"],
+                "safe-input",
+                timeout_seconds=3,
+                output_limit=100,
+            )
+
+        self.assertEqual(result[0], 0)
+        self.assertEqual(len(processes), 1)
+        self.assertTrue(processes[0].stdin.closed)
+        self.assertTrue(processes[0].stdout.closed)
 
     def test_bounded_process_stops_on_output_overflow(self):
         code = "print('x' * 100000)"
