@@ -14,6 +14,10 @@ VALID_EVIDENCE = {
     "exit_code": 0,
     "test_count": 4,
     "timestamp": "2026-10-21T02:00:00Z",
+    "source_sha256": HASH,
+    "verifier_id": "isolated-test-adapter",
+    "run_id": "run-0001",
+    "checks_performed": ["behavioral_tests"],
 }
 
 
@@ -29,6 +33,7 @@ class LearningLedgerTests(unittest.TestCase):
             HASH, "syntax_error", "Parser failed near line 12"
         )
         self.assertEqual(record["status"], "UNVERIFIED")
+        self.assertEqual(record["schema_version"], 2)
         self.assertNotIn("source", record)
         self.assertNotIn("failure_output", record)
         saved = json.loads(self.path.read_text(encoding="utf-8"))
@@ -48,6 +53,26 @@ class LearningLedgerTests(unittest.TestCase):
         self.assertEqual(record["status"], "VERIFIED")
         self.assertEqual(record["verification"]["exit_code"], 0)
         self.assertEqual(record["verification"]["test_count"], 4)
+        self.assertEqual(record["verification"]["verifier_id"], "isolated-test-adapter")
+        self.assertEqual(record["verification"]["run_id"], "run-0001")
+        self.assertEqual(record["verification"]["source_sha256"], HASH)
+        self.assertIn("behavioral_tests", record["verification"]["checks_performed"])
+
+    def test_verified_record_rejects_mismatched_source_hash(self):
+        evidence = dict(VALID_EVIDENCE, source_sha256="b" * 64)
+        with self.assertRaises(LearningLedgerError):
+            self.ledger.append_record(
+                HASH, "test_error", "hash mismatch",
+                status="VERIFIED", verification=evidence,
+            )
+
+    def test_verified_record_requires_behavioral_test_evidence(self):
+        evidence = dict(VALID_EVIDENCE, checks_performed=["python_syntax"])
+        with self.assertRaises(LearningLedgerError):
+            self.ledger.append_record(
+                HASH, "test_error", "syntax is not behavioral verification",
+                status="VERIFIED", verification=evidence,
+            )
 
     def test_nonzero_exit_code_is_rejected(self):
         evidence = dict(VALID_EVIDENCE, exit_code=1)
