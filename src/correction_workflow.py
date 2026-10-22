@@ -11,7 +11,9 @@ import re
 from src.verification_runner import verify_python_source
 
 
-_PYTHON_BLOCK = re.compile(r"```python[ \t]*\r?\n(.*?)\r?\n?```", re.IGNORECASE | re.DOTALL)
+_PYTHON_BLOCK = re.compile(
+    r"```python[ \\t]*\\r?\\n(.*?)\\r?\\n?```", re.IGNORECASE | re.DOTALL
+)
 
 
 def extract_python_candidate(proposal):
