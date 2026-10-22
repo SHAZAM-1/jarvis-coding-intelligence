@@ -57,7 +57,7 @@ class VerificationReceipt:
     elapsed_seconds: float
     timestamp: str
     success: bool
-    _issuer: object = field(default=None, repr=False, compare=False)
+    _issuer: object = field(default=None, repr=False, compare=False, init=False)
 
     def to_dict(self):
         """Return bounded, source-free evidence suitable for the learning ledger."""
@@ -325,8 +325,8 @@ class BehavioralVerifier:
                 "+00:00", "Z"
             ),
             success=success,
-            _issuer=_RECEIPT_ISSUER,
         )
+        object.__setattr__(receipt, "_issuer", _RECEIPT_ISSUER)
         return BehavioralVerificationResult(
             status="verified" if success else "behavioral_failed",
             receipt=receipt,
