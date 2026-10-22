@@ -118,6 +118,11 @@ Python function whose arguments, keyword arguments, and return value are JSON
 compatible. Supply trusted input/expected-output cases and configure
 `DockerFunctionVerifier` as the `CorrectionWorkflow` behavioral verifier. It
 checks each case in a separate Python child process inside a Docker container.
+Each case has a two-second timeout; on timeout, the runner makes a best-effort
+attempt to terminate the child's process group and reap the direct child before
+continuing. This is not a guarantee against descendants that deliberately escape
+their process group; Docker's overall process, memory, CPU, and container-runtime
+limits remain additional containment layers.
 
 The image must already exist locally: the adapter checks it with
 `docker image inspect` and uses `--pull=never`; it never downloads an image.
