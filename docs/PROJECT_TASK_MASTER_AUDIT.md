@@ -15,8 +15,10 @@ The main limitation is **integration and evidence**. The components do not yet f
 ### Progress update — 2026-10-22: correction workflow implementation started
 
 A new implementation branch, `feat/correction-verification-learning-workflow`,
-is building the first safe coordinator slice. The slice strictly extracts one
-Python code block from the model's `PROPOSED FIX` section, applies the existing
+is building the first safe coordinator slice in draft PR #17. GitHub Actions
+run #239 passed on Python 3.10, 3.11, 3.12, and 3.13; the Python 3.10 job ran
+106 unit tests. The slice strictly extracts one Python code block from the
+model's `PROPOSED FIX` section, applies the existing
 non-executing syntax gate, optionally delegates behavioral checks to a configured
 trusted adapter, checks the returned source hash and verifier identity, and
 records provenance in the learning ledger.
@@ -61,6 +63,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#5 — Deterministic coding smoke benchmark](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/5) | Initial benchmark | Draft, CI passed on recorded head | Three opt-in coding tasks |
 | [#6 — Python AST validation](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/6) | Structural checks | Draft, CI passed on recorded head | AST checks for benchmark output |
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
+| [#17 — Correction workflow coordinator](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/17) | Workflow integration slice | Draft; CI run #239 passed on Python 3.10–3.13 | Strict proposal extraction, syntax gate, optional trusted-verifier contract, and provenance-aware ledger records |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -183,7 +186,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-05 | Initial coding benchmark | Draft PR #5 | CI passed on recorded head | Expand tasks |
 | W-06 | AST validation | Draft PR #6 | CI passed on recorded head | Verify latest branch and expand checks |
 | W-07 | Strict AST/audit-timeout validation | Draft PR #7 | CI passed on recorded head | Run local tests and inspect status |
-| W-08 | Correction-to-verification integration | In progress on `feat/correction-verification-learning-workflow` | Coordinator connects correction proposal, strict source extraction, syntax validation, optional trusted-verifier handoff, and ledger recording | Add a real restricted behavioral verifier; then run full integration checks |
+| W-08 | Correction-to-verification integration | In progress in draft PR #17; CI passed on Python 3.10–3.13 | Coordinator connects correction proposal, strict source extraction, syntax validation, optional trusted-verifier handoff, and ledger recording | Add a real restricted behavioral verifier; then run full integration checks |
 | W-09 | Evidence-backed learning | Partially implemented on workflow branch | Ledger schema v2 records source hash, verifier ID, run ID, and behavioral-check names; coordinator gates VERIFIED on matching adapter evidence | Build and test a trusted adapter; preserve the direct-API trust caveat |
 | W-10 | Behavioral benchmark | Planned | Current benchmark is smoke test | Build broader suite |
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
@@ -191,6 +194,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
+| W-16 | Workflow coordinator verification | First slice implemented; CI passed | GitHub Actions run #239 passed all four supported Python versions; 106 tests in Python 3.10 job | Add negative category regression coverage; build a real restricted behavioral verifier; do not merge stacked PRs yet |
 
 ### Current blockers
 
