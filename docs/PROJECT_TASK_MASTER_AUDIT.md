@@ -52,6 +52,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI runs #115 and #117 passed (102 tests on Python 3.10–3.13) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
 | [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; CI run #122 passed 102 tests | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
 | [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
+| [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI pending | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
