@@ -20,6 +20,7 @@ from src.verification_runner import verify_python_source
 STATUSES = {"UNVERIFIED", "SYNTAX_VALID", "VERIFIED"}
 MAX_LEDGER_LINE_CHARS = 8192
 MAX_LEDGER_SCAN_RECORDS = 1000
+MAX_LEDGER_FILE_BYTES = 16 * 1024 * 1024
 _CATEGORIES = {
     "missing_import", "syntax_error", "missing_attribute", "missing_key",
     "type_error", "assertion_failure", "timeout", "connection_error",
@@ -131,8 +132,10 @@ def _valid_stored_verified_record(record):
         if not isinstance(timestamp, str):
             return False
         try:
-            datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
         except ValueError:
+            return False
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
             return False
     return True
 
@@ -202,6 +205,13 @@ class LearningLedger:
             raise LearningLedgerError("category must be a recognized diagnostic category.")
         if not os.path.exists(self.path):
             return []
+        try:
+            if os.path.getsize(self.path) > MAX_LEDGER_FILE_BYTES:
+                raise LearningLedgerError(
+                    "Learning ledger exceeds the bounded retrieval size limit."
+                )
+        except OSError as exc:
+            raise LearningLedgerError("Could not inspect the learning ledger.") from exc
 
         tail = deque(maxlen=MAX_LEDGER_SCAN_RECORDS)
         try:
