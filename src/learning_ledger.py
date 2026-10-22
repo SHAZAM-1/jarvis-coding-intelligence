@@ -12,6 +12,8 @@ import re
 import threading
 from datetime import datetime
 
+from src.verification_runner import verify_python_source
+
 
 STATUSES = {"UNVERIFIED", "SYNTAX_VALID"}
 _CATEGORIES = {
