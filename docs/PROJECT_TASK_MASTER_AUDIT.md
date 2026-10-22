@@ -48,7 +48,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#6 — Python AST validation](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/6) | Structural checks | Draft, CI passed on recorded head | AST checks for benchmark output |
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
 | [#8 — Full project task master audit](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/8) | Project audit document | Draft, unmerged | Full task/status tables and dependency-ordered roadmap |
-| [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI run #111 passed (102 tests on Python 3.10–3.13) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
+| [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI run #115 passed (102 tests on Python 3.10–3.13, including the safety-policy documentation update) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -261,7 +261,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 
 | ID | Task-table item | Change now made | Evidence status | Next gate |
 |---|---|---|---|---|
-| IMP-01 | Correction workflow | Added `src/correction_workflow.py` to connect the existing corrector, strict single-fenced-Python extraction, syntax parsing, and ledger recording | Source committed to feature branch; CI passed on commit 424c9b9 (102 tests across Python 3.10–3.13) | Run focused and full unit tests in CI |
+| IMP-01 | Correction workflow | Added `src/correction_workflow.py` to connect the existing corrector, strict single-fenced-Python extraction, syntax parsing, and ledger recording | Source and safety-policy docs committed to feature branch; CI run #115 passed on commit fa6533e (102 tests across Python 3.10–3.13) | Run focused and full unit tests in CI |
 | IMP-02 | Candidate output contract | Updated the correction prompt to request exactly one fenced Python candidate | Source change committed; behavior not yet independently tested on a real model | Unit-test prompt contract; avoid inference until RAM preflight |
 | IMP-03 | Evidence honesty | Ledger independently parses source before SYNTAX_VALID and rejects caller-supplied status/evidence | Regression tests updated; CI passed across Python 3.10–3.13 | Confirm tests pass and no call sites depend on caller-supplied VERIFIED |
 | IMP-04 | Syntax-only evidence | Syntax-valid candidate is recorded as SYNTAX_VALID with candidate SHA-256; malformed/missing candidates stay UNVERIFIED | Focused tests added; CI passed across Python 3.10–3.13 | Verify hash, status, and privacy behavior |
@@ -269,7 +269,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | IMP-06 | Behavioral verification | Not implemented yet | No behavioral correctness claim is made | Design restricted runner with clear platform limits and no inherited secrets |
 | IMP-07 | Task table maintenance | Status rows and roadmap updated to reflect partial implementation | Documentation change in the same feature branch | Update statuses again after CI and review |
 
-**Current phase result: PARTIAL.** The proposal → syntax check → conservative ledger slice is implemented in the branch and passed CI (102 tests across Python 3.10–3.13). It is not merged or locally verified, and it is not behaviorally verified. Do not label a candidate as a verified fix.
+**Current phase result: PARTIAL.** The proposal → syntax check → conservative ledger slice and aligned safety documentation passed CI run #115 (102 tests across Python 3.10–3.13). The latest task-table-only edit is documentation; it is not merged or locally verified, and the workflow is not behaviorally verified. Do not label a candidate as a verified fix.
 
 ## Final recommendation
 
