@@ -102,12 +102,14 @@ run ID, test command(s), exit code, test count, check names, and timestamp.
 The coordinator checks the hash and configured identity before allowing a
 `VERIFIED` ledger record. The ledger stores that provenance in schema version 2.
 
-**Safety boundary:** The coordinator does not write or execute candidate code,
-and this repository does not yet provide a built-in sandboxed behavioral
-verifier. A test double used by unit tests verifies orchestration logic only; it
-is not evidence that real generated code passed behavioral tests. Direct ledger
-calls still cannot cryptographically prove that caller-supplied evidence is
-genuine.
+**Safety boundary:** The coordinator does not write or execute candidate code.
+This repository includes the optional, narrow Docker-based behavioral verifier
+described below; it is not a general project test runner, requires an image
+already installed locally, and real Windows/Docker Desktop behavior remains
+unverified until the guarded smoke test is performed. A test double used by unit
+tests verifies orchestration logic only; it is not evidence that real generated
+code passed behavioral tests. Direct ledger calls still cannot cryptographically
+prove that caller-supplied evidence is genuine.
 
 ### Optional Docker behavioral verifier
 
