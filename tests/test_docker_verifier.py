@@ -59,7 +59,7 @@ class DockerFunctionVerifierTests(unittest.TestCase):
             DockerFunctionVerifier("add", [{"args": [], "kwargs": {}, "expected": 1}], image="bad image")
 
     def test_configuration_rejects_invalid_timeout(self):
-        for value in (0, 121, True, float("nan"), float("inf")):
+        for value in (0, 121, True, float("nan"), float("inf"), 10**1000):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     DockerFunctionVerifier(
