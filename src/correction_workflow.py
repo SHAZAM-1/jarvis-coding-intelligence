@@ -5,6 +5,7 @@ are delegated to a configured trusted verifier adapter. Without that adapter,
 syntax-valid candidates are never marked VERIFIED.
 """
 import re
+from datetime import datetime
 
 from src.learning_ledger import LearningLedgerError
 from src.verification_runner import verify_python_source
@@ -67,7 +68,15 @@ def _is_verified_evidence(result, source_sha256, expected_verifier_id):
     count = result.get("test_count")
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return False
-    return isinstance(result.get("timestamp"), str)
+    timestamp = result.get("timestamp")
+    if not isinstance(timestamp, str) or not timestamp.strip():
+        return False
+    try:
+        parsed_timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    # Audit evidence must identify an unambiguous point in time.
+    return parsed_timestamp.tzinfo is not None
 
 
 class CorrectionWorkflow:
