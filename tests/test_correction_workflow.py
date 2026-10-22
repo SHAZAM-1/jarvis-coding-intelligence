@@ -100,7 +100,7 @@ class CorrectionWorkflowTests(unittest.TestCase):
             VerificationUnavailableError, "No behavioral verifier is configured"
         ):
             self.workflow.verify_behavior(
-                "def add(a, b):\\n    return a + b\\n",
+                "def add(a, b):\n    return a + b\n",
                 "add",
                 [{"args": [1, 2], "kwargs": {}, "expected": 3}],
                 allow_execution=True,
@@ -113,7 +113,7 @@ class CorrectionWorkflowTests(unittest.TestCase):
             VerificationUnavailableError, "explicitly opt in"
         ):
             workflow.verify_behavior(
-                "def add(a, b):\\n    return a + b\\n",
+                "def add(a, b):\n    return a + b\n",
                 "add",
                 [{"args": [1, 2], "kwargs": {}, "expected": 3}],
             )
@@ -127,7 +127,7 @@ class CorrectionWorkflowTests(unittest.TestCase):
         verifier.verify.assert_not_called()
 
     def test_successful_behavioral_result_uses_receipt_gated_ledger_api(self):
-        source = "def add(a, b):\\n    return a + b\\n"
+        source = "def add(a, b):\n    return a + b\n"
         receipt = SimpleNamespace(
             source_sha256=hashlib.sha256(source.encode("utf-8")).hexdigest(),
             success=True,
@@ -158,12 +158,15 @@ class CorrectionWorkflowTests(unittest.TestCase):
         self.ledger.append_verified_record.assert_called_once_with(
             source=source,
             category="assertion_failure",
-            summary="All 2 declared behavioral cases passed in the configured Docker sandbox.",
+            summary=(
+                "All 2 declared behavioral cases passed in the configured "
+                "Docker sandbox."
+            ),
             receipt=receipt,
         )
 
     def test_failed_behavioral_result_is_never_promoted(self):
-        source = "def add(a, b):\\n    return a - b\\n"
+        source = "def add(a, b):\n    return a - b\n"
         receipt = SimpleNamespace(
             source_sha256=hashlib.sha256(source.encode("utf-8")).hexdigest(),
             success=False,
