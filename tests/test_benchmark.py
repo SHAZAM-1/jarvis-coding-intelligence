@@ -84,14 +84,14 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_is_even_ast_validation_accepts_correct_logic(self):
         result = evaluate_response(
-            "def is_even(n):\\n    return n % 2 == 0",
+            "def is_even(n):\n    return n % 2 == 0",
             next(task for task in BENCHMARK_TASKS if task.task_id == "python_is_even"),
         )
         self.assertTrue(result["passed"], result["issues"])
 
     def test_is_even_ast_validation_rejects_wrong_logic(self):
         result = evaluate_response(
-            "def is_even(n):\\n    return n % 2 == 1",
+            "def is_even(n):\n    return n % 2 == 1",
             next(task for task in BENCHMARK_TASKS if task.task_id == "python_is_even"),
         )
         self.assertFalse(result["passed"])
@@ -99,14 +99,14 @@ class BenchmarkTests(unittest.TestCase):
 
     def test_safe_divide_ast_validation_accepts_zero_guard_and_division(self):
         result = evaluate_response(
-            "def safe_divide(a, b):\\n    if b == 0:\\n        return None\\n    else:\\n        return a / b",
+            "def safe_divide(a, b):\n    if b == 0:\n        return None\n    else:\n        return a / b",
             next(task for task in BENCHMARK_TASKS if task.task_id == "python_safe_divide"),
         )
         self.assertTrue(result["passed"], result["issues"])
 
     def test_safe_divide_ast_validation_rejects_missing_zero_guard(self):
         result = evaluate_response(
-            "def safe_divide(a, b):\\n    return a / b",
+            "def safe_divide(a, b):\n    return a / b",
             next(task for task in BENCHMARK_TASKS if task.task_id == "python_safe_divide"),
         )
         self.assertFalse(result["passed"])
