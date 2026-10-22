@@ -162,7 +162,7 @@ class BehavioralVerifierTests(unittest.TestCase):
             )
 
     def test_non_boolean_protocol_status_fails_closed(self):
-        process = FakeProcess(b'{"ok":1,"value":3}\\n')
+        process = FakeProcess(b'{"ok":1,"value":3}\n')
         with self.assertRaisesRegex(BehavioralVerificationError, "worker protocol"):
             self.make_verifier(process).verify(
                 SOURCE, "add", CASES, allow_execution=True
