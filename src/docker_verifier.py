@@ -235,7 +235,7 @@ def _cleanup_container(docker_executable, container_name):
                 timeout_seconds=3,
                 output_limit=4096,
             )
-        except DockerVerifierError:
+        except Exception:
             # Cleanup must not hide the original verifier failure.
             pass
 
