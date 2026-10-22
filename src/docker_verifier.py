@@ -226,6 +226,20 @@ if __name__ == "__main__":
 '''
 
 
+def _cleanup_container(docker_executable, container_name):
+    """Best-effort bounded cleanup for a container whose CLI ended unexpectedly."""
+    for cleanup_args in (["kill", container_name], ["rm", "--force", container_name]):
+        try:
+            _run_bounded(
+                [docker_executable, *cleanup_args],
+                timeout_seconds=3,
+                output_limit=4096,
+            )
+        except Exception:
+            # Cleanup must not hide the original verifier failure.
+            pass
+
+
 class DockerFunctionVerifier:
     """Verify JSON-callable functions in an opt-in, network-disabled container.
 
@@ -349,24 +363,21 @@ class DockerFunctionVerifier:
                 "--mount", f"type=bind,source={mount_source},target=/workspace,readonly",
                 self.image, "python", "-I", "-B", "/workspace/runner.py",
             ]
-            exit_code, output, timed_out, overflow = _run_bounded(
-                command, input_text=payload, timeout_seconds=self.timeout_seconds,
-                output_limit=_MAX_OUTPUT_BYTES,
-            )
+            try:
+                exit_code, output, timed_out, overflow = _run_bounded(
+                    command, input_text=payload, timeout_seconds=self.timeout_seconds,
+                    output_limit=_MAX_OUTPUT_BYTES,
+                )
+            except BaseException:
+                # The Docker CLI may be killed by an unexpected host-side error
+                # after the daemon has already started the container.
+                _cleanup_container(self.docker_executable, container_name)
+                raise
+
             if timed_out or overflow:
                 # Killing the Docker CLI alone may leave the daemon-managed
-                # container running. Best-effort cleanup targets this unique
-                # container name and is bounded independently.
-                for cleanup_args in (["kill", container_name], ["rm", "--force", container_name]):
-                    try:
-                        _run_bounded(
-                            [self.docker_executable, *cleanup_args],
-                            timeout_seconds=3,
-                            output_limit=4096,
-                        )
-                    except DockerVerifierError:
-                        # Preserve the original timeout/output-limit failure.
-                        pass
+                # container running. Clean up the uniquely named container.
+                _cleanup_container(self.docker_executable, container_name)
         if timed_out:
             raise VerifierExecutionError("Docker behavioral verification timed out.")
         if overflow:
