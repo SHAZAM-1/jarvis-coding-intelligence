@@ -147,6 +147,21 @@ class BehavioralVerifierTests(unittest.TestCase):
                     result.receipt,
                 )
 
+    def test_receipt_cannot_verify_different_source(self):
+        result = self.make_verifier().verify(
+            SOURCE, "add", CASES, allow_execution=True
+        )
+        different_source = "def add(a, b):\\n    return a - b\\n"
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = LearningLedger(Path(directory) / "learning.jsonl")
+            with self.assertRaisesRegex(LearningLedgerError, "does not match"):
+                ledger.append_verified_record(
+                    different_source,
+                    "assertion_failure",
+                    "Must not be trusted",
+                    result.receipt,
+                )
+
     def test_candidate_exception_is_a_failed_case(self):
         process = FakeProcess(b'{"ok":false,"error":"ValueError"}\n')
         result = self.make_verifier(process).verify(
