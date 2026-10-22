@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 from src.learning_ledger import LearningLedger, LearningLedgerError
 from src.behavioral_verifier import (
     MAX_OUTPUT_BYTES,
