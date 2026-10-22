@@ -107,9 +107,9 @@ python -m unittest discover -s tests -p 'test_correction_workflow.py' -v
 
 The runtime ledger defaults to `data/learning_ledger.jsonl`, which is ignored
 by Git. Each entry stores a source hash, diagnostic category, bounded summary,
-and conservative status. The workflow may record SYNTAX_VALID only after its
-own syntax check succeeds. The ledger rejects caller-supplied VERIFIED status
-and arbitrary verification dictionaries. VERIFIED remains unavailable until a
+and conservative status. The ledger accepts SYNTAX_VALID only through a dedicated method that itself
+parses the source; direct status assignment is rejected. The ledger also rejects
+caller-supplied VERIFIED status and arbitrary verification dictionaries. VERIFIED remains unavailable until a
 trusted behavioral verifier captures results from tests it actually runs.
 The ledger never stores full source code or raw failure output by design.
 
