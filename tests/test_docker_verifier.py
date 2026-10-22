@@ -2,8 +2,11 @@
 import ast
 import hashlib
 import json
+import os
+import stat
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -13,6 +16,7 @@ from src.docker_verifier import (
     VerifierUnavailableError,
     _run_bounded,
     _RUNNER_SOURCE,
+    _prepare_nonroot_workspace,
 )
 
 SOURCE = "def add(a, b):\n    return a + b\n"
@@ -120,9 +124,28 @@ class DockerFunctionVerifierTests(unittest.TestCase):
             "--name",
         ):
             self.assertIn(required, command)
+        self.assertIn("--user=65532:65532", command)
+        self.assertNotIn("--user=0:0", command)
         self.assertIn("python", command)
         self.assertIn("-I", command)
         self.assertIn("-B", command)
+
+    def test_nonroot_workspace_permissions_allow_container_reads(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            candidate_path = os.path.join(workspace, "candidate.py")
+            runner_path = os.path.join(workspace, "runner.py")
+            for path in (candidate_path, runner_path):
+                with open(path, "w", encoding="utf-8") as stream:
+                    stream.write("pass\\n")
+
+            _prepare_nonroot_workspace(workspace, candidate_path, runner_path)
+
+            self.assertTrue(os.path.isfile(candidate_path))
+            self.assertTrue(os.path.isfile(runner_path))
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(os.stat(workspace).st_mode), 0o755)
+                for path in (candidate_path, runner_path):
+                    self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o644)
 
     def test_malformed_success_summary_never_passes(self):
         one_case = DockerFunctionVerifier(
