@@ -151,7 +151,7 @@ class BehavioralVerifierTests(unittest.TestCase):
         result = self.make_verifier().verify(
             SOURCE, "add", CASES, allow_execution=True
         )
-        different_source = "def add(a, b):\\n    return a - b\\n"
+        different_source = "def add(a, b):\n    return a - b\n"
         with tempfile.TemporaryDirectory() as directory:
             ledger = LearningLedger(Path(directory) / "learning.jsonl")
             with self.assertRaisesRegex(LearningLedgerError, "does not match"):
