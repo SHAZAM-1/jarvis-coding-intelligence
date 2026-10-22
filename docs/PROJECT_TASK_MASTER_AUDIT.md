@@ -25,7 +25,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-05 | Error analyzer | Implemented | Classifies common errors; ambiguous/unseen errors can be misclassified | Expand tests and preserve unknown cases | High |
 | P-06 | Self-correction engine | Implemented | Produces bounded proposals; does not apply changes or prove correctness | Connect proposals to independent verification | Critical |
 | P-07 | Syntax verification | Implemented | Parses Python without executing it | Keep as an early gate; add separate behavioral testing | Critical |
-| P-08 | Learning ledger | Implemented; evidence policy hardened on feature branch | Append-only records, bounded summaries, redaction; caller-supplied VERIFIED claims now rejected | Add trusted behavioral-verifier receipts and safe retrieval | Critical |
+| P-08 | Learning ledger | Implemented; evidence policy hardened on feature branch | Append-only records, bounded summaries, redaction; direct SYNTAX_VALID/VERIFIED assignment and caller-supplied evidence rejected | Add trusted behavioral-verifier receipts and safe retrieval | Critical |
 | P-09 | Coding smoke benchmark | Implemented in draft PR | Three fixed tasks; narrow coverage | Expand into behavioral benchmark | Critical |
 | P-10 | AST validation | Implemented in draft PR | Checks structure for built-in benchmark tasks | Verify locally; extend regression coverage | High |
 | P-11 | Strict AST/audit-timeout checks | Implemented in PR #7 | GitHub Actions passed on recorded head; local verification still outstanding in latest known status | Run local tests and inspect Git status | High |
@@ -114,7 +114,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 |---|---|---|---|---|---|
 | M-01 | Full behavioral correction workflow | Initial syntax-only slice now connects proposal, candidate parsing, and ledger recording | Add trusted, isolated behavioral verification and regression checks | Critical | Core modules and safe execution isolation |
 | M-02 | Behavioral verification | Correct syntax does not guarantee behavior | Run trusted tests in controlled environment | Critical | Verification architecture |
-| M-03 | Independent behavioral verification evidence | Ledger no longer accepts caller-supplied VERIFIED status/evidence; only syntax outcomes are currently recorded by the workflow | Capture test results from a trusted verifier that actually ran them | Critical | Verification runner and execution isolation |
+| M-03 | Independent behavioral verification evidence | Ledger blocks direct SYNTAX_VALID/VERIFIED claims and independently parses before SYNTAX_VALID; behavioral evidence is still missing | Capture test results from a trusted verifier that actually ran them | Critical | Verification runner and execution isolation |
 | M-04 | Verified lesson retrieval | Stored lessons are not a complete learning mechanism | Retrieve relevant validated lessons with bounded context | Critical | Learning ledger |
 | M-05 | Regression protection | Fix may solve one problem and break another | Run focused regression tests | Critical | Behavioral verification |
 | M-06 | Broad coding benchmark | Three tasks cannot establish general coding ability | Add coding, debugging, edge-case, and refactoring tasks | Critical | Benchmark infrastructure |
@@ -142,7 +142,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | E-01 | Missing workflow integration | No complete verification lifecycle | Build workflow coordinator | Explicit stages/states from proposal through result |
 | E-02 | Limited benchmark coverage | Results may overstate coding ability | Expand task suite | Diverse tasks and deliberately incorrect candidates |
 | E-03 | No end-to-end behavioral verification | Syntax-valid fix may be wrong | Implement controlled tests | Incorrect candidates fail relevant tests |
-| E-04 | Caller-supplied verification claims | Hardened: new writes cannot use VERIFIED or attach caller-supplied evidence; behavioral evidence still missing | Add trusted behavioral verifier and evidence receipt | Only verifier-produced results can support VERIFIED |
+| E-04 | Caller-supplied verification claims | Hardened: public writes cannot claim SYNTAX_VALID/VERIFIED or attach evidence; a dedicated method reparses source; behavioral evidence still missing | Add trusted behavioral verifier and evidence receipt | Only verifier-produced results can support VERIFIED |
 | E-05 | Prompt-injection exposure | Untrusted input can influence instructions | Strengthen boundaries and add adversarial tests | Input text cannot authorize actions |
 | E-06 | No resource baseline | Efficiency claims unsupported | Measure resource use | Baseline, workload, RAM, CPU, latency recorded |
 | E-07 | Unvalidated routing heuristics | Routing may waste resources/reduce quality | Benchmark routing | Compare routed strategy to fixed profiles |
@@ -263,7 +263,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 |---|---|---|---|---|
 | IMP-01 | Correction workflow | Added `src/correction_workflow.py` to connect the existing corrector, strict single-fenced-Python extraction, syntax parsing, and ledger recording | Source committed to feature branch; CI not yet checked | Run focused and full unit tests in CI |
 | IMP-02 | Candidate output contract | Updated the correction prompt to request exactly one fenced Python candidate | Source change committed; behavior not yet independently tested on a real model | Unit-test prompt contract; avoid inference until RAM preflight |
-| IMP-03 | Evidence honesty | Ledger now rejects caller-supplied VERIFIED status and arbitrary verification dictionaries | Regression tests updated; CI pending | Confirm tests pass and no call sites depend on caller-supplied VERIFIED |
+| IMP-03 | Evidence honesty | Ledger independently parses source before SYNTAX_VALID and rejects caller-supplied status/evidence | Regression tests updated; CI pending | Confirm tests pass and no call sites depend on caller-supplied VERIFIED |
 | IMP-04 | Syntax-only evidence | Syntax-valid candidate is recorded as SYNTAX_VALID with candidate SHA-256; malformed/missing candidates stay UNVERIFIED | Focused tests added; CI pending | Verify hash, status, and privacy behavior |
 | IMP-05 | Execution safety | Workflow explicitly does not apply or execute proposed code | Covered by API flags and tests; CI pending | Keep behavioral execution out until isolation design is reviewed |
 | IMP-06 | Behavioral verification | Not implemented yet | No behavioral correctness claim is made | Design restricted runner with clear platform limits and no inherited secrets |
