@@ -87,7 +87,7 @@ and larger values are rejected during client construction.
 `CorrectionWorkflow` coordinates these bounded stages:
 
 1. Ask the existing corrector for a proposal.
-2. Extract one unambiguous, non-empty fenced ```python candidate.
+2. Extract one unambiguous, non-empty fenced Python code block.
 3. Parse the candidate with Python's AST parser without executing it.
 4. Append a compact ledger entry tied to the candidate's SHA-256 digest.
 5. Return explicit flags stating that the candidate was not applied, executed,
