@@ -7,7 +7,10 @@ that requires explicit opt-in and a configured Docker verifier.
 import hashlib
 import re
 
-from src.behavioral_verifier import VerificationUnavailableError
+from src.behavioral_verifier import (
+    BehavioralVerificationError,
+    VerificationUnavailableError,
+)
 from src.verification_runner import verify_python_source
 
 
@@ -143,6 +146,11 @@ class CorrectionWorkflow:
             allow_execution=True,
         )
         receipt = result.receipt
+        source_hash = hashlib.sha256(candidate_source.encode("utf-8")).hexdigest()
+        if receipt.source_sha256 != source_hash:
+            raise BehavioralVerificationError(
+                "Verifier receipt does not match the proposed candidate source."
+            )
         if receipt.success is True:
             summary = (
                 f"All {receipt.case_count} declared behavioral cases passed "
