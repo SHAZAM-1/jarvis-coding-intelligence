@@ -70,7 +70,7 @@ REQUIREMENTS:
 1. Identify the likely root cause and distinguish facts from hypotheses.
 2. Propose the smallest reasonable correction and explain why it addresses
    the observed failure.
-3. Return the complete replacement for the relevant code unit.
+3. Return the complete replacement for the relevant code unit as exactly one fenced Python code block under PROPOSED FIX. Do not put regression-test code in that block.
 4. Include focused regression tests and relevant edge cases.
 5. Never claim tests passed unless actually executed.
 6. Do not invent files, dependencies, APIs, or test results.
