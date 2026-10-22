@@ -202,8 +202,8 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
-| W-17 | Docker behavioral verifier | Implemented; CI run #265 passed | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, bounded host output, and extreme-timeout rejection | CI mocks Docker; perform a real Docker run only with a locally available image and explicit runtime preflight | 
-| W-18 | Real Docker smoke test | Pending; not run | CI does not launch Docker or pull images; Windows/Docker Desktop behavior is not yet verified | Check current free RAM and Docker state; use only an image already installed locally; verify one small pure-function case without model inference |
+| W-17 | Docker behavioral verifier | Implemented; CI run #265 passed | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, bounded host output, and extreme-timeout rejection | Run the new owner-invoked smoke helper on Windows/Docker Desktop; broader project-level test interfaces remain future work | 
+| W-18 | Real Docker smoke test | Helper implemented; owner-run validation pending | `scripts/docker_verifier_smoke.py` requires explicit `--run`, blocks below 1536 MiB or unknown RAM, and uses only an already-installed image | First run `python -m scripts.docker_verifier_smoke` for help; then run with `--run` only when Docker/image/free-RAM preflight is satisfied |
 | W-16 | Workflow coordinator verification | Coordinator and optional adapter implemented; CI run #265 passed | Run #265 passed on Python 3.10–3.13; Python 3.10 ran 121 tests | Continue with a real Docker smoke test and broader project-level verification; do not merge stacked PRs yet |
 
 ### Current blockers
@@ -212,7 +212,10 @@ These require reproducible experiments. Orchestration changes should not be desc
 2. There is no complete correction-to-verification pipeline.
 3. Three smoke tasks are insufficient for model comparisons.
 4. Real inference needs a fresh RAM check.
-5. The Docker adapter still needs one controlled real-container smoke test; CI uses mocks.
+5. The opt-in `scripts/docker_verifier_smoke.py` helper now provides a fixed
+three-case test and refuses to run without `--run` or at least 1536 MiB free
+RAM. It uses only an image already present locally. The real Windows/Docker
+Desktop smoke test still needs to be run by the owner; CI continues to mock Docker.
 6. The stacked PRs need dependency review before merging.
 
 ## 7. Main architectural limitations and strength of updates
