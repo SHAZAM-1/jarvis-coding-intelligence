@@ -147,7 +147,7 @@ Only run when an operator explicitly enables sandbox integration tests and confi
 | BV-04 | Implement restricted container command and bounded worker protocol | Unit tests prove required flags and protocol failure behavior |
 | BV-05 | Add host-side expected-output comparison | Candidate cannot provide expected values or mark its own run successful |
 | BV-06 | Integrate receipt with ledger | VERIFIED accepted only from successful verifier evidence; direct status assignment remains rejected |
-| BV-07 | Add opt-in Docker integration tests | Success/failure/timeout cleanup demonstrated using preloaded image |
+| BV-07 | Add opt-in Docker integration tests | Opt-in integration test module added; a real run with a preloaded image is still pending |
 | BV-08 | Integrate into correction workflow behind explicit opt-in | Default behavior remains proposal-only; no silent execution |
 | BV-09 | Measure RAM/CPU/latency on target laptop | Fresh preflight and recorded measurements; no unsupported resource claims |
 

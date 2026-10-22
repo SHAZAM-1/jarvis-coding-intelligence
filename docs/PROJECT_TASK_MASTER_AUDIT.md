@@ -183,7 +183,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
 | W-12 | Model accuracy comparison | Pending | No comparable results | Benchmark under controlled settings |
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
-| W-14 | Safe behavioral-test isolation | Runner implemented in draft PR #11; CI run #167 passed 121 tests; no real Docker run | Docker-only, opt-in, no-pull design for declarative JSON cases; unit tests use a fake process | Verify CI, then review opt-in integration on a preloaded image |
+| W-14 | Safe behavioral-test isolation | Runner unit-tested; opt-in real-Docker integration test module added on feature branch; real run pending | Docker-only, opt-in, no-pull design for declarative JSON cases; CI does not execute the sandbox tests | Verify CI; real run requires user opt-in and a preloaded digest-pinned image |
 | W-16 | Receipt-gated VERIFIED ledger | Verifier unit suite passed CI; workflow integration pending CI | Public status assignment blocked; ledger requires verifier-issued receipt bound to source hash | Keep real Docker integration pending |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
 
@@ -341,6 +341,18 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | PI-04 | Security claims | Documentation says this is defense-in-depth, not a guarantee against prompt injection | README and correction-safety guidance updated | Add adversarial cases without claiming complete resistance |
 
 **Current phase result: IMPLEMENTED, CI PASSED ON CLEAN STACK.** PR #15 passed 131 unit tests across Python 3.10–3.13 in CI run #220. PR #14 was closed as superseded because PR #15 carries the same changes onto the current base.  JSON encoding prevents embedded newlines from breaking the payload structure, but a model may still be influenced by malicious data. The security boundary remains the host code and explicit permissions, not prompt wording.
+
+## 17. Opt-in Docker integration test harness — 2026-10-22
+
+| ID | Task-table item | Change now made | Evidence status | Next gate |
+|---|---|---|---|---|
+| DIT-01 | Default-off integration tests | Added a test module skipped unless JARVIS_RUN_DOCKER_SANDBOX_TESTS=1 | CI should skip without opt-in; no Docker command was run during this change | Verify the standard CI matrix remains non-executing |
+| DIT-02 | Local image policy | Requires JARVIS_SANDBOX_IMAGE to name a preloaded digest-pinned image; test preflights with image inspect only | No image pull command exists in the test harness | User confirms the image is already local before opt-in |
+| DIT-03 | Behavior checks | Added happy-path, wrong-output, network-disabled, and infinite-loop timeout cases | Test code committed; real sandbox behavior unverified | Run only on a machine with Docker and adequate RAM |
+| DIT-04 | Operator instructions | README now gives PowerShell setup and environment cleanup commands | Documentation added; not executed by the assistant | User runs the opt-in test after checking free RAM and local image digest |
+| DIT-05 | CI safety | Integration tests must stay skipped in generic CI unless explicitly opted in | Test decorator checks the environment variable before setup | Preserve this guard and never auto-pull images |
+
+**Current phase result: TEST HARNESS IMPLEMENTED, REAL SANDBOX UNVERIFIED.** No Docker daemon, container, candidate code, model inference, or image download was invoked. CI validates the ordinary unit suite only; the real integration tests require deliberate opt-in on the target machine.
 
 ## Final recommendation
 
