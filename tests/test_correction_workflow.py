@@ -8,7 +8,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from src.behavioral_verifier import VerificationUnavailableError
+from src.behavioral_verifier import (
+    BehavioralVerificationError,
+    VerificationUnavailableError,
+)
 from src.correction_workflow import CorrectionWorkflow, extract_python_candidate
 from src.learning_ledger import LearningLedger
 
@@ -191,6 +194,29 @@ class CorrectionWorkflowTests(unittest.TestCase):
         self.assertFalse(result["behaviorally_verified"])
         self.assertEqual(result["ledger_record"]["status"], "UNVERIFIED")
         self.assertNotIn("verification", result["ledger_record"])
+
+    def test_mismatched_behavioral_receipt_is_rejected_even_on_failure(self):
+        source = "def add(a, b):\n    return a - b\n"
+        receipt = SimpleNamespace(
+            source_sha256=hashlib.sha256(b"different source").hexdigest(),
+            success=False,
+            case_count=1,
+            passed_count=0,
+            failed_count=1,
+        )
+        verifier = Mock()
+        verifier.verify.return_value = SimpleNamespace(
+            status="behavioral_failed", receipt=receipt, failed_case_indices=(0,)
+        )
+        workflow = CorrectionWorkflow(self.corrector, self.ledger, verifier)
+        with self.assertRaisesRegex(BehavioralVerificationError, "does not match"):
+            workflow.verify_behavior(
+                source,
+                "add",
+                [{"args": [1, 2], "kwargs": {}, "expected": 3}],
+                allow_execution=True,
+                category="assertion_failure",
+            )
 
     def test_requires_corrector_and_ledger_interfaces(self):
         with self.assertRaises(TypeError):
