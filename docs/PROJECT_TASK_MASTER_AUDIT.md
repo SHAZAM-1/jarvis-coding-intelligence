@@ -26,10 +26,13 @@ non-executing syntax gate, optionally delegates behavioral checks to a configure
 trusted adapter, checks the returned source hash and verifier identity, and
 records provenance in the learning ledger.
 
-This is **not yet a complete behavioral-verification solution**: the coordinator
-does not execute candidate code, and the repository still needs a genuinely
-trusted, restricted behavioral-verifier adapter. Without that adapter, outcomes
-remain `SYNTAX_VALID` or `UNVERIFIED`, never `VERIFIED`.
+This remains an incremental behavioral-verification solution. The opt-in
+`DockerFunctionVerifier` now provides a restricted, network-disabled test
+adapter for pure JSON-callable functions, with bounded CPU, memory, processes,
+runtime, and output. It does not cover arbitrary project tests, and no actual
+Docker container has been run in CI; tests mock the Docker boundary. Without a
+configured verifier, outcomes remain `SYNTAX_VALID` or `UNVERIFIED`, never
+`VERIFIED`.
 
 Recommended order: verify the latest branch locally; review stacked PR dependencies; integrate correction with safe verification; make learning records evidence-backed; expand behavioral benchmarking; measure resource use; compare model/routing choices only after repeatable measurements; then integrate reviewed changes into main without bypassing safeguards.
 
@@ -52,6 +55,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-13 | Model-quality evaluation | Incomplete | No reliable evidence updates improved general coding accuracy | Establish baseline and broaden benchmark | Critical |
 | P-14 | Integration into main | Incomplete | Features remain in stacked draft PRs | Verify dependencies and integrate safely | High |
 | P-15 | Real-model resource benchmark | Pending | Inference deliberately avoided because prior RAM headroom was low | Recheck RAM before inference | Critical |
+| P-16 | Restricted behavioral verifier | Implemented as an opt-in initial adapter | Docker runner supports JSON-callable single-function cases; no Docker image is pulled and no real container run has been claimed | Add broader trusted test interfaces only after isolation review and real-environment validation | High |
 
 ### 1.1 Known pull-request stack
 
@@ -66,7 +70,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#5 — Deterministic coding smoke benchmark](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/5) | Initial benchmark | Draft, CI passed on recorded head | Three opt-in coding tasks |
 | [#6 — Python AST validation](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/6) | Structural checks | Draft, CI passed on recorded head | AST checks for benchmark output |
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
-| [#17 — Correction workflow coordinator](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/17) | Workflow integration slice | Draft; CI run #239 passed on Python 3.10–3.13 | Strict proposal extraction, syntax gate, optional trusted-verifier contract, and provenance-aware ledger records |
+| [#17 — Correction workflow coordinator](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/17) | Workflow and verifier slice | Draft; coordinator baseline CI passed; Docker-adapter changes awaiting fresh CI | Strict proposal extraction, syntax gate, optional Docker verifier for JSON-callable functions, and provenance-aware ledger records |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -85,7 +89,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | A-09 | src/benchmark.py | Runs opt-in coding smoke tasks | Deterministic starting point; no inference unless explicitly requested | Three tasks too narrow for general claims | Expand tasks and evaluate behavior |
 | A-10 | Integration/workflow layer | Should coordinate modules | Existing building blocks are reusable | No complete correction-to-verification-to-learning flow | Add explicit coordinator with bounded states |
 | A-11 | Tests and CI | Exercises components across Python versions | Unit tests and multi-version CI | Does not prove end-to-end behavior or model quality | Add workflow tests and separate model evaluations |
-| A-12 | Security boundaries | Restricts current correction behavior | No automatic file changes or generated-code execution in current flow | Future execution features could weaken safety | Keep authorization and execution isolation outside model control |
+| A-12 | Security boundaries | Restricts current correction behavior | Coordinator never applies candidate code; optional Docker adapter disables networking and limits resources | Container/kernel vulnerabilities and candidate/test interactions remain residual risks | Keep authorization and execution isolation outside model control |
 
 **Architecture assessment:** The project is modular and safety-conscious. Its main weakness is the lack of integrated control flow and independent evidence for correctness. More prompts or model complexity before closing that gap could make the system more elaborate without making it more reliable.
 
@@ -131,7 +135,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | ID | Missing capability | Why it matters | Required implementation | Priority | Dependency |
 |---|---|---|---|---|---|
 | M-01 | End-to-end correction workflow | Components do not yet form a complete verified process | Coordinator slice is in progress: proposal extraction, syntax gate, verifier handoff, ledger record; trusted behavioral runner remains missing | Critical | Core modules |
-| M-02 | Behavioral verification | Correct syntax does not guarantee behavior | Run trusted tests in controlled environment | Critical | Verification architecture |
+| M-02 | Behavioral verification | Correct syntax does not guarantee behavior | Initial Docker adapter tests JSON-callable functions in a restricted container; broader project tests remain unsupported | Critical | Verification architecture |
 | M-03 | Independent verification evidence | Caller-supplied metadata alone is not proof | Coordinator checks candidate hash, configured verifier identity, run ID, and behavioral-test marker; real adapter must capture results from actual verification | Critical | Trusted verifier adapter |
 | M-04 | Verified lesson retrieval | Stored lessons are not a complete learning mechanism | Retrieve relevant validated lessons with bounded context | Critical | Learning ledger |
 | M-05 | Regression protection | Fix may solve one problem and break another | Run focused regression tests | Critical | Behavioral verification |
@@ -144,7 +148,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | M-12 | Resource benchmarking | Savings are not measured | Record baseline/task-level RAM, CPU, latency | Critical | Safe benchmark runner |
 | M-13 | Model-aware resource policy | Models have different memory needs | Use metadata and measurements to choose safe settings | High | Audit/resource guard |
 | M-14 | Duplicate/contradictory lesson handling | Conflicting lessons can mislead future tasks | Deduplication, provenance, staleness/conflict handling | Medium | Learning ledger |
-| M-15 | Safe execution isolation | Behavioral testing may execute candidate code | Restricted execution, explicit limits, no inherited secrets | Critical | Security design |
+| M-15 | Safe execution isolation | Behavioral testing may execute candidate code | Initial Docker adapter uses no network, read-only mounts/root filesystem, resource limits, and no automatic image pull | Critical | Security design; real Docker validation still pending |
 | M-16 | Reliable root-cause diagnosis | Wrong diagnosis causes unnecessary changes | Compare explanations with reproducible evidence | High | Analyzer/verifier |
 | M-17 | Integration testing | Components may fail when combined | Test full workflow with controlled dependencies | Critical | Workflow coordinator |
 | M-18 | Persistent evaluation history | Results are hard to compare over time | Compact, versioned reports | High | Benchmark reporting |
@@ -159,7 +163,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 |---|---|---|---|---|
 | E-01 | Missing workflow integration | No complete verification lifecycle yet | Implemented first coordinator slice in workflow branch | Proposal extraction, syntax gate, bounded outcomes, and ledger status are tested; trusted behavioral adapter remains outstanding |
 | E-02 | Limited benchmark coverage | Results may overstate coding ability | Expand task suite | Diverse tasks and deliberately incorrect candidates |
-| E-03 | No end-to-end behavioral verification | Syntax-valid fix may be wrong | Implement controlled tests | Incorrect candidates fail relevant tests |
+| E-03 | No end-to-end behavioral verification | Syntax-valid fix may be wrong | Added opt-in Docker function verifier with JSON input/expected-output cases | Mocked tests cover command safety and evidence parsing; actual container execution and general project tests remain unverified |
 | E-04 | Caller-supplied verification claims | Ledger status may mislead | Require matching source hash, verifier identity, run ID, and behavioral-check provenance | Coordinator checks the evidence shape; real adapter must generate trustworthy results |
 | E-05 | Prompt-injection exposure | Untrusted input can influence instructions | Strengthen boundaries and add adversarial tests | Input text cannot authorize actions |
 | E-06 | No resource baseline | Efficiency claims unsupported | Measure resource use | Baseline, workload, RAM, CPU, latency recorded |
@@ -197,7 +201,8 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
-| W-16 | Workflow coordinator verification | First slice implemented; latest CI run #245 failed on a prompt-assertion formatting mismatch | Run #239 passed all four supported Python versions; run #245 failed because the expected phrase crossed a line break after prompt wrapping | Normalize whitespace in the assertion, rerun CI, then continue toward a real restricted behavioral verifier; do not merge stacked PRs yet |
+| W-17 | Docker behavioral verifier | Implemented; validation pending | Optional JSON-function verifier added with no-pull image check, network-disabled container, resource limits, isolated per-case child process, and bounded output | CI mocks Docker; validate tests and command construction, then perform a real Docker run only with a locally available image and explicit runtime preflight |
+| W-16 | Workflow coordinator verification | Coordinator slice implemented; CI run #248 passed before Docker adapter addition | Run #248 passed on Python 3.10–3.13 after normalizing the prompt assertion; the latest adapter changes require a fresh CI run | Verify adapter tests, update evidence from the new run, and do not merge stacked PRs yet |
 
 ### Current blockers
 
@@ -235,7 +240,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | 3 | Design correction workflow | Coordinator slice in workflow branch | Proposal parsing, syntax gate, bounded failure states, and no-auto-apply boundary are implemented; behavioral runner contract still needs a trusted adapter | Critical |
 | 4 | Integrate correction and syntax validation | Proposal-validation coordinator | Strictly extract one replacement block, reject ambiguous output, and keep candidate code unexecuted | Critical |
 | 5 | Add independent verification evidence | Source-bound verifier handoff and ledger provenance | Coordinator checks source hash and verifier identity; completion still requires a real trusted adapter that generates evidence | Critical |
-| 6 | Add controlled behavioral testing | Restricted test runner | Candidates pass/fail trusted tests | Critical |
+| 6 | Add controlled behavioral testing | Initial Docker function verifier | JSON-callable function candidates pass/fail trusted expected-output cases; general project tests remain future work | Critical |
 | 7 | Integrate learning ledger | Coordinator writes UNVERIFIED/SYNTAX_VALID or gated VERIFIED records | Tests show only matching successful adapter evidence can promote a record; actual adapter trust/isolation remains outstanding | Critical |
 | 8 | Harden untrusted-input handling | Adversarial regression tests | Untrusted content cannot authorize actions | Critical |
 | 9 | Expand coding benchmark | Behavioral benchmark | Diverse tasks cover common failures | Critical |
@@ -257,7 +262,7 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | Deep profile | Reduced to balanced if RAM is unknown or below 2048 MiB | Do not assume deep mode is safe |
 | Model downloads | Audit/smoke checks do not require downloads | Do not download large weights without explicit need/approval |
 | Benchmark execution | No inference unless explicitly opted in with run flag | Preserve opt-in behavior |
-| Generated code | Current syntax checks do not execute generated code | Keep execution disabled until isolation reviewed |
+| Generated code | Coordinator does not execute candidates; optional Docker adapter executes only inside a constrained, network-disabled container | No real container run claimed; adapter tests currently mock Docker |
 | Resource claims | No equivalent-workload measurements prove savings | Report measurements, not assumptions |
 | Ollama concurrency | Lock serializes requests within one Python process | Does not coordinate other apps/processes |
 
