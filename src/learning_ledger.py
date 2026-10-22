@@ -15,7 +15,7 @@ from datetime import datetime
 from src.verification_runner import verify_python_source
 
 
-STATUSES = {"UNVERIFIED", "SYNTAX_VALID"}
+STATUSES = {"UNVERIFIED", "SYNTAX_VALID", "VERIFIED"}
 _CATEGORIES = {
     "missing_import", "syntax_error", "missing_attribute", "missing_key",
     "type_error", "assertion_failure", "timeout", "connection_error",
@@ -97,7 +97,46 @@ class LearningLedger:
             verification["sha256"], category, summary, status="SYNTAX_VALID"
         )
 
-    def _append_record(self, source_sha256, category, summary, status):
+    def append_verified_record(self, source, category, summary, receipt):
+        """Record VERIFIED only from a verifier-issued receipt bound to source."""
+        from src.behavioral_verifier import SANDBOX_POLICY, is_trusted_receipt
+
+        verification = verify_python_source(source)
+        if not verification["syntax_valid"]:
+            raise LearningLedgerError(
+                "Cannot record VERIFIED: source failed syntax verification."
+            )
+        if not is_trusted_receipt(receipt):
+            raise LearningLedgerError(
+                "VERIFIED requires a receipt issued by BehavioralVerifier."
+            )
+        if receipt.source_sha256 != verification["sha256"]:
+            raise LearningLedgerError(
+                "Verification receipt does not match the supplied source hash."
+            )
+        if (
+            receipt.success is not True
+            or receipt.exit_code != 0
+            or receipt.case_count < 1
+            or receipt.answered_count != receipt.case_count
+            or receipt.passed_count != receipt.case_count
+            or receipt.failed_count != 0
+            or receipt.sandbox_policy != SANDBOX_POLICY
+            or not receipt.manifest_sha256
+            or not receipt.image_digest
+        ):
+            raise LearningLedgerError(
+                "VERIFIED requires a complete successful behavioral-verification receipt."
+            )
+        return self._append_record(
+            verification["sha256"],
+            category,
+            summary,
+            status="VERIFIED",
+            verification=receipt.to_dict(),
+        )
+
+    def _append_record(\n        self, source_sha256, category, summary, status, verification=None\n    ):
         """Persist a validated record without storing source or failure output."""
         if status not in STATUSES:
             raise LearningLedgerError(f"status must be one of {sorted(STATUSES)}")
@@ -113,6 +152,16 @@ class LearningLedger:
             "summary": _safe_text(summary, 240),
             "status": status,
         }
+        if status == "VERIFIED":
+            if not isinstance(verification, dict):
+                raise LearningLedgerError(
+                    "VERIFIED records require verifier-issued evidence."
+                )
+            record["verification"] = verification
+        elif verification is not None:
+            raise LearningLedgerError(
+                "Verification evidence is accepted only for VERIFIED records."
+            )
         encoded = json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n"
         parent = os.path.dirname(os.path.abspath(self.path))
         os.makedirs(parent, exist_ok=True)
