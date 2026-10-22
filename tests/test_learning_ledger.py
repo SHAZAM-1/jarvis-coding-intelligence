@@ -9,6 +9,8 @@ from src.learning_ledger import LearningLedger, LearningLedgerError
 
 
 HASH = "a" * 64
+
+
 class LearningLedgerTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -27,7 +29,9 @@ class LearningLedgerTests(unittest.TestCase):
         self.assertEqual(saved["source_sha256"], HASH)
 
     def test_verified_status_is_reserved_for_trusted_behavioral_verifier(self):
-        with self.assertRaisesRegex(LearningLedgerError, "trusted behavioral verifier"):
+        with self.assertRaisesRegex(
+            LearningLedgerError, "trusted behavioral verifier"
+        ):
             self.ledger.append_record(
                 HASH, "test_error", "fixed", status="VERIFIED"
             )
