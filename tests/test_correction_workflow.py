@@ -141,6 +141,14 @@ class CorrectionWorkflowTests(unittest.TestCase):
         self.assertEqual(result["status"], "behavior_failed")
         self.assertFalse(result["verified"])
 
+    def test_invalid_error_category_falls_back_to_unknown(self):
+        self.corrector.propose.return_value["error_category"] = []
+        result = CorrectionWorkflow(self.corrector, self.ledger).run(
+            "Implement add", "pass", "AssertionError: expected sum"
+        )
+        self.assertEqual(result["ledger_record"]["category"], "unknown")
+        self.assertEqual(result["ledger_record"]["status"], "SYNTAX_VALID")
+
     def test_verifier_configuration_requires_identity(self):
         with self.assertRaises(ValueError):
             CorrectionWorkflow(self.corrector, self.ledger, lambda **kwargs: {}, None)
