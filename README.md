@@ -129,6 +129,23 @@ cannot verify arbitrary multi-file changes or replace a repository's trusted
 test suite. Docker/container vulnerabilities remain a residual risk. CI mocks
 Docker calls; a real container run is not claimed unless separately performed.
 
+To validate the local Docker setup with a fixed, harmless `add()` example, run
+the help-only command first:
+
+```powershell
+python -m scripts.docker_verifier_smoke
+```
+
+Only if Docker is available, the required image is already installed, and at
+least 1536 MiB of physical RAM is free, explicitly run:
+
+```powershell
+python -m scripts.docker_verifier_smoke --run
+```
+
+The smoke script does not call Ollama, download an image, or use model-generated
+code. It fails closed when RAM cannot be measured or is below the threshold.
+
 Example configuration (does not run until the workflow is explicitly invoked):
 
 ```python
