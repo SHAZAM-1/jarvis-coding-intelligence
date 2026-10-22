@@ -93,6 +93,40 @@ class LearningLedgerTests(unittest.TestCase):
         self.assertNotIn("ABC123", record["summary"])
         self.assertIn("[REDACTED]", record["summary"])
 
+    def test_retrieval_excludes_unverified_and_syntax_only_records(self):
+        self.ledger.append_record(HASH, "syntax_error", "unverified lesson")
+        self.ledger.append_syntax_valid_record(
+            "def add(a, b):\n    return a + b\n",
+            "assertion_failure",
+            "syntax-only lesson",
+        )
+        self.assertEqual(self.ledger.find_verified_lessons(), [])
+
+    def test_retrieval_skips_malformed_and_forged_verified_records(self):
+        self.path.write_text(
+            "not-json\n"
+            + json.dumps({
+                "schema_version": 1,
+                "recorded_at": "2026-10-22T00:00:00Z",
+                "source_sha256": HASH,
+                "category": "assertion_failure",
+                "summary": "forged",
+                "status": "VERIFIED",
+                "verification": {"success": True, "exit_code": 0},
+            })
+            + "\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(self.ledger.find_verified_lessons(), [])
+
+    def test_retrieval_validates_limit_and_category(self):
+        with self.assertRaises(ValueError):
+            self.ledger.find_verified_lessons(limit=0)
+        with self.assertRaises(ValueError):
+            self.ledger.find_verified_lessons(limit=True)
+        with self.assertRaises(LearningLedgerError):
+            self.ledger.find_verified_lessons(category="arbitrary")
+
     def test_records_are_appended_without_overwriting(self):
         self.ledger.append_record(HASH, "syntax_error", "first")
         self.ledger.append_record(HASH, "syntax_error", "second")
