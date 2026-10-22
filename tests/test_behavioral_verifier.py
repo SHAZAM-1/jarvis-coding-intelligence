@@ -211,6 +211,19 @@ class BehavioralVerifierTests(unittest.TestCase):
         self.assertTrue(process.killed)
         self.assertEqual(self.run_func.call_count, 2)
 
+    def test_missing_docker_client_fails_closed(self):
+        run_func = Mock(side_effect=FileNotFoundError("docker not installed"))
+        popen_factory = Mock()
+        verifier = BehavioralVerifier(
+            IMAGE,
+            resource_probe=lambda: 4096,
+            run_func=run_func,
+            popen_factory=popen_factory,
+        )
+        with self.assertRaisesRegex(VerificationUnavailableError, "Docker is unavailable"):
+            verifier.verify(SOURCE, "add", CASES, allow_execution=True)
+        popen_factory.assert_not_called()
+
     def test_missing_local_image_fails_without_running_candidate(self):
         verifier = self.make_verifier(image_rc=1)
         with self.assertRaisesRegex(
