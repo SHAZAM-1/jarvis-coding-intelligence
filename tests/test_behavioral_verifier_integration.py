@@ -9,12 +9,12 @@ import subprocess
 import unittest
 
 from src.behavioral_verifier import (
+    MIN_FREE_RAM_MB,
     BehavioralVerificationError,
     BehavioralVerifier,
     VerificationUnavailableError,
 )
 from src.resource_guard import available_memory_mb
-from src.behavioral_verifier import MIN_FREE_RAM_MB
 
 
 _RUN_SANDBOX_TESTS = os.environ.get("JARVIS_RUN_DOCKER_SANDBOX_TESTS") == "1"
@@ -58,7 +58,9 @@ class DockerBehavioralVerifierIntegrationTests(unittest.TestCase):
                 resource_probe=available_memory_mb,
             )
         except ValueError as exc:
-            raise unittest.SkipTest(f"invalid local image configuration: {exc}") from exc
+            raise unittest.SkipTest(
+                f"invalid local image configuration: {exc}"
+            ) from exc
 
     def verify_or_skip(self, source, entrypoint, cases, verifier=None):
         selected = verifier or self.verifier
@@ -112,7 +114,7 @@ class DockerBehavioralVerifierIntegrationTests(unittest.TestCase):
     def test_infinite_loop_times_out_without_a_verified_receipt(self):
         verifier = BehavioralVerifier(
             self.verifier.image_digest,
-            timeout_seconds=1,
+            timeout_seconds=3,
             resource_probe=available_memory_mb,
         )
         with self.assertRaisesRegex(BehavioralVerificationError, "timed out"):
