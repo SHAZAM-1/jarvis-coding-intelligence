@@ -109,6 +109,42 @@ is not evidence that real generated code passed behavioral tests. Direct ledger
 calls still cannot cryptographically prove that caller-supplied evidence is
 genuine.
 
+### Optional Docker behavioral verifier
+
+`src/docker_verifier.py` provides an opt-in adapter for a single module-level
+Python function whose arguments, keyword arguments, and return value are JSON
+compatible. Supply trusted input/expected-output cases and configure
+`DockerFunctionVerifier` as the `CorrectionWorkflow` behavioral verifier. It
+checks each case in a separate Python child process inside a Docker container.
+
+The image must already exist locally: the adapter checks it with
+`docker image inspect` and uses `--pull=never`; it never downloads an image.
+The container has no network, a read-only root filesystem and source mount,
+256 MiB memory, 0.5 CPU, a 32-process limit, dropped capabilities, no-new-
+privileges, a bounded runtime, and bounded host-captured output. Expected values
+are held by the container-side runner and are not sent to the candidate process.
+
+This is a **narrow initial verifier**, not a general project test runner. It
+cannot verify arbitrary multi-file changes or replace a repository's trusted
+test suite. Docker/container vulnerabilities remain a residual risk. CI mocks
+Docker calls; a real container run is not claimed unless separately performed.
+
+Example configuration (does not run until the workflow is explicitly invoked):
+
+```python
+from src.docker_verifier import DockerFunctionVerifier
+
+verifier = DockerFunctionVerifier(
+    function_name="add",
+    test_cases=[
+        {"args": [1, 2], "kwargs": {}, "expected": 3},
+        {"args": [-2, 5], "kwargs": {}, "expected": 3},
+    ],
+    image="python:3.12-slim",  # must already be present locally
+)
+# Pass verifier and verifier.verifier_id to CorrectionWorkflow.
+```
+
 ## Coding smoke checks
 
 The smoke-check runner is opt-in and sends three small requests to the selected
