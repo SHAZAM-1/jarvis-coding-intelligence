@@ -86,6 +86,82 @@ zero exit code, a positive test count, and an ISO timestamp. The ledger does
 not execute tests and does not independently prove that supplied evidence is
 genuine. It never stores the full source code or raw failure output by design.
 
+## Correction workflow coordinator
+
+`src/correction_workflow.py` connects one bounded correction proposal to strict
+proposal extraction, Python syntax validation, optional behavioral-verifier
+handoff, and learning-ledger recording. The model must return exactly one
+fenced Python replacement in the `PROPOSED FIX` section. Ambiguous output is
+not executed or recorded as verified.
+
+Without a configured behavioral verifier, the workflow records at most
+`SYNTAX_VALID`; syntax validity is not behavioral correctness. A verifier must
+be trusted integration code that tests the exact candidate source in a suitably
+restricted environment and returns its source hash, configured verifier ID,
+run ID, test command(s), exit code, test count, check names, and timestamp.
+The coordinator checks the hash and configured identity before allowing a
+`VERIFIED` ledger record. The ledger stores that provenance in schema version 2.
+
+**Safety boundary:** The coordinator does not write or execute candidate code,
+and this repository does not yet provide a built-in sandboxed behavioral
+verifier. A test double used by unit tests verifies orchestration logic only; it
+is not evidence that real generated code passed behavioral tests. Direct ledger
+calls still cannot cryptographically prove that caller-supplied evidence is
+genuine.
+
+### Optional Docker behavioral verifier
+
+`src/docker_verifier.py` provides an opt-in adapter for a single module-level
+Python function whose arguments, keyword arguments, and return value are JSON
+compatible. Supply trusted input/expected-output cases and configure
+`DockerFunctionVerifier` as the `CorrectionWorkflow` behavioral verifier. It
+checks each case in a separate Python child process inside a Docker container.
+
+The image must already exist locally: the adapter checks it with
+`docker image inspect` and uses `--pull=never`; it never downloads an image.
+The container has no network, a read-only root filesystem and source mount,
+256 MiB memory, 0.5 CPU, a 32-process limit, dropped capabilities, no-new-
+privileges, a bounded runtime, and bounded host-captured output. Expected values
+are held by the container-side runner and are not sent to the candidate process.
+
+This is a **narrow initial verifier**, not a general project test runner. It
+cannot verify arbitrary multi-file changes or replace a repository's trusted
+test suite. Docker/container vulnerabilities remain a residual risk. CI mocks
+Docker calls; a real container run is not claimed unless separately performed.
+
+To validate the local Docker setup with a fixed, harmless `add()` example, run
+the help-only command first:
+
+```powershell
+python -m scripts.docker_verifier_smoke
+```
+
+Only if Docker is available, the required image is already installed, and at
+least 1536 MiB of physical RAM is free, explicitly run:
+
+```powershell
+python -m scripts.docker_verifier_smoke --run
+```
+
+The smoke script does not call Ollama, download an image, or use model-generated
+code. It fails closed when RAM cannot be measured or is below the threshold.
+
+Example configuration (does not run until the workflow is explicitly invoked):
+
+```python
+from src.docker_verifier import DockerFunctionVerifier
+
+verifier = DockerFunctionVerifier(
+    function_name="add",
+    test_cases=[
+        {"args": [1, 2], "kwargs": {}, "expected": 3},
+        {"args": [-2, 5], "kwargs": {}, "expected": 3},
+    ],
+    image="python:3.12-slim",  # must already be present locally
+)
+# Pass verifier and verifier.verifier_id to CorrectionWorkflow.
+```
+
 ## Coding smoke checks
 
 The smoke-check runner is opt-in and sends three small requests to the selected

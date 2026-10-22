@@ -48,9 +48,26 @@ def _validate_hash(source_sha256):
     return source_sha256
 
 
-def _verification_evidence(evidence):
+def _verification_evidence(evidence, source_sha256):
     if not isinstance(evidence, dict):
         raise LearningLedgerError("VERIFIED records require verification evidence.")
+
+    if evidence.get("source_sha256") != source_sha256:
+        raise LearningLedgerError("Verification evidence must match the recorded source hash.")
+    verifier_id = _safe_text(evidence.get("verifier_id"), 80)
+    run_id = _safe_text(evidence.get("run_id"), 120)
+    checks = evidence.get("checks_performed")
+    if not verifier_id or not run_id:
+        raise LearningLedgerError("Verification requires verifier_id and run_id.")
+    if (
+        not isinstance(checks, list)
+        or not checks
+        or any(not isinstance(check, str) or not check.strip() for check in checks)
+    ):
+        raise LearningLedgerError("Verification requires named checks_performed.")
+    safe_checks = [_safe_text(check, 80) for check in checks[:8]]
+    if "behavioral_tests" not in safe_checks:
+        raise LearningLedgerError("VERIFIED records require behavioral_tests evidence.")
 
     commands = evidence.get("commands")
     exit_code = evidence.get("exit_code")
@@ -79,6 +96,10 @@ def _verification_evidence(evidence):
         "exit_code": 0,
         "test_count": test_count,
         "timestamp": timestamp,
+        "source_sha256": source_sha256,
+        "verifier_id": verifier_id,
+        "run_id": run_id,
+        "checks_performed": safe_checks,
     }
 
 
@@ -106,7 +127,7 @@ class LearningLedger:
             raise LearningLedgerError("category must be a recognized diagnostic category.")
 
         record = {
-            "schema_version": 1,
+            "schema_version": 2,
             "recorded_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "source_sha256": source_sha256,
             "category": category,
@@ -114,7 +135,7 @@ class LearningLedger:
             "status": status,
         }
         if status == "VERIFIED":
-            record["verification"] = _verification_evidence(verification)
+            record["verification"] = _verification_evidence(verification, source_sha256)
         elif verification is not None:
             # Preserve evidence only for explicitly verified records, avoiding
             # misleading partial proof on other statuses.
