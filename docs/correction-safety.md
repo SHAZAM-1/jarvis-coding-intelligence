@@ -62,6 +62,15 @@ unit tests using a fake process, but no real Docker sandbox run has been
 performed. Never add a host-execution fallback; review the exact Docker
 configuration and test it with a preloaded image before relying on isolation.
 
+## Prompt-injection boundary
+
+The correction prompt serializes the task, source code, failure output, and
+analyzer excerpts as one JSON object labeled untrusted. The prompt explicitly
+says that instructions inside those values are data, not authority. This is
+defense in depth, not a guarantee that a language model cannot be influenced
+by hostile content. Never use model output or source/log text to authorize
+execution, file writes, credentials access, or other privileged actions.
+
 ## Verified lesson retrieval
 
 The ledger's retrieval API returns only structurally valid VERIFIED records and
