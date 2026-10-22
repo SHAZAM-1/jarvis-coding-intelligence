@@ -48,7 +48,8 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#6 — Python AST validation](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/6) | Structural checks | Draft, CI passed on recorded head | AST checks for benchmark output |
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
 | [#8 — Full project task master audit](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/8) | Project audit document | Draft, unmerged | Full task/status tables and dependency-ordered roadmap |
-| [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI run #115 passed (102 tests on Python 3.10–3.13, including the safety-policy documentation update) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
+| [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI runs #115 and #117 passed (102 tests on Python 3.10–3.13) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
+| [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; documentation-only, no runtime code | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -177,7 +178,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
 | W-12 | Model accuracy comparison | Pending | No comparable results | Benchmark under controlled settings |
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
-| W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
+| W-14 | Safe behavioral-test isolation | Design documented in draft PR #10; runner not implemented | Docker-only, opt-in, no-pull design for declarative JSON cases; no execution performed | Review design, then implement bounded controller/worker protocol |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
 
 ### Current blockers
@@ -267,9 +268,24 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | IMP-04 | Syntax-only evidence | Syntax-valid candidate is recorded as SYNTAX_VALID with candidate SHA-256; malformed/missing candidates stay UNVERIFIED | Focused tests added; CI passed across Python 3.10–3.13 | Verify hash, status, and privacy behavior |
 | IMP-05 | Execution safety | Workflow explicitly does not apply or execute proposed code | Covered by API flags and tests; CI passed across Python 3.10–3.13 | Keep behavioral execution out until isolation design is reviewed |
 | IMP-06 | Behavioral verification | Not implemented yet | No behavioral correctness claim is made | Design restricted runner with clear platform limits and no inherited secrets |
-| IMP-07 | Task table maintenance | Status rows and roadmap updated to reflect partial implementation | Documentation change in the same feature branch | Update statuses again after CI and review |
+| IMP-07 | Task table maintenance | Status rows and roadmap updated to reflect partial implementation | CI runs #115/#117 passed for PR #9's 102-test suite | Continue updating after design review and implementation gates |
 
 **Current phase result: PARTIAL.** The proposal → syntax check → conservative ledger slice and aligned safety documentation passed CI run #115 (102 tests across Python 3.10–3.13). The latest task-table-only edit is documentation; it is not merged or locally verified, and the workflow is not behaviorally verified. Do not label a candidate as a verified fix.
+
+## 12. Behavioral verification design — 2026-10-22
+
+| ID | Task-table item | Current state | Safety boundary | Next gate |
+|---|---|---|---|---|
+| BV-01 | Threat model and supported scope | Documented in draft PR #10 | First version covers single-callable Python with JSON-compatible inputs/outputs, not arbitrary project commands | Review scope before code |
+| BV-02 | Sandbox backend | Design only | Docker required; no host fallback and no automatic image pull | Implement fail-closed Docker/image preflight |
+| BV-03 | Candidate/test separation | Design only | Expected values stay in host controller; candidate receives inputs only | Implement worker protocol and malformed-output rejection |
+| BV-04 | Resource limits and timeout cleanup | Design only | Non-root, network-disabled, read-only container with bounded resources | Unit-test exact runtime arguments and cleanup |
+| BV-05 | Evidence receipt | Design only | Candidate cannot supply its own success state or expected results | Bind result to source hash, manifest hash, image digest, case counts, and verifier outcome |
+| BV-06 | VERIFIED ledger status | Intentionally disabled | Syntax-only status cannot imply behavioral correctness | Re-enable only after trusted verifier receipt contract is implemented and tested |
+| BV-07 | Runtime execution | Not performed | No Docker invocation, candidate execution, model inference, or image download in this phase | Only opt-in integration tests with an already-present pinned image |
+| BV-08 | Laptop resource assessment | Pending | 8 GB RAM; Docker host overhead is not yet measured | Fresh RAM preflight and explicit approval before integration execution |
+
+**Phase result: DESIGN READY FOR REVIEW, NOT IMPLEMENTED.** The design intentionally narrows the first behavioral verifier to JSON-compatible callable tests. It does not authorize arbitrary shell commands or direct host execution. The existing syntax-only workflow and VERIFIED lock remain in place.
 
 ## Final recommendation
 
