@@ -47,7 +47,7 @@ class LearningLedgerTests(unittest.TestCase):
             )
 
     def test_ledger_independently_parses_before_syntax_valid_status(self):
-        source = "def add(a, b):\\n    return a + b\\n"
+        source = "def add(a, b):\n    return a + b\n"
         record = self.ledger.append_syntax_valid_record(
             source, "assertion_failure", "Syntax checked by ledger"
         )
@@ -60,7 +60,7 @@ class LearningLedgerTests(unittest.TestCase):
     def test_ledger_rejects_invalid_source_for_syntax_valid_status(self):
         with self.assertRaisesRegex(LearningLedgerError, "syntax parsing failed"):
             self.ledger.append_syntax_valid_record(
-                "def add(:\\n    return 1\\n",
+                "def add(:\n    return 1\n",
                 "syntax_error",
                 "This source is invalid",
             )
