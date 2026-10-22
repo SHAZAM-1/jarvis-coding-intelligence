@@ -29,7 +29,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-09 | Coding smoke benchmark | Implemented in draft PR | Three fixed tasks; narrow coverage | Expand into behavioral benchmark | Critical |
 | P-10 | AST validation | Implemented in draft PR | Checks structure for built-in benchmark tasks | Verify locally; extend regression coverage | High |
 | P-11 | Strict AST/audit-timeout checks | Implemented in PR #7 | GitHub Actions passed on recorded head; local verification still outstanding in latest known status | Run local tests and inspect Git status | High |
-| P-12 | Correction-to-ledger workflow | Proposal/syntax flow plus explicit behavioral-verification method implemented on feature branch; CI pending for integration | Normal run remains non-executing; separate method requires allow_execution=True and a configured Docker verifier | Verify integration CI; real Docker/local tests remain pending | Critical |
+| P-12 | Correction-to-ledger workflow | Proposal/syntax flow plus explicit behavioral-verification method implemented; CI run #185 passed 127 tests on Python 3.10–3.13 | Normal run remains non-executing; separate method requires allow_execution=True and a configured Docker verifier | Verify integration CI; real Docker/local tests remain pending | Critical |
 | P-13 | Model-quality evaluation | Incomplete | No reliable evidence updates improved general coding accuracy | Establish baseline and broaden benchmark | Critical |
 | P-14 | Integration into main | Incomplete | Features remain in stacked draft PRs | Verify dependencies and integrate safely | High |
 | P-15 | Real-model resource benchmark | Pending | Inference deliberately avoided because prior RAM headroom was low | Recheck RAM before inference | Critical |
@@ -52,7 +52,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#9 — Correction workflow and evidence policy](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/9) | Initial correction-to-ledger workflow | Draft PR open; CI runs #115 and #117 passed (102 tests on Python 3.10–3.13) | Connects proposal, syntax verification, and conservative learning records; no candidate execution |
 | [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; CI run #122 passed 102 tests | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
 | [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
-| [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI pending | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
+| [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI run #185 passed 127 tests on Python 3.10–3.13 | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -175,7 +175,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-05 | Initial coding benchmark | Draft PR #5 | CI passed on recorded head | Expand tasks |
 | W-06 | AST validation | Draft PR #6 | CI passed on recorded head | Verify latest branch and expand checks |
 | W-07 | Strict AST/audit-timeout validation | Draft PR #7 | CI passed on recorded head | Run local tests and inspect status |
-| W-08 | Correction-to-ledger workflow | Draft PR #9: proposal/syntax slice passed CI; explicit behavioral method now in follow-up branch | Normal run never invokes behavioral execution; verify_behavior requires explicit opt-in | Verify PR #12 CI and inspect integration diff; real Docker run remains pending |
+| W-08 | Correction-to-ledger workflow | Draft PR #9: proposal/syntax slice passed CI; PR #12 explicit behavioral method passed CI | Normal run never invokes behavioral execution; verify_behavior requires explicit opt-in | Verify PR #12 CI and inspect integration diff; real Docker run remains pending |
 | W-09 | Evidence-backed learning | Partial: syntax and receipt-gated behavioral records implemented; real Docker run pending | Candidate hash bound to verifier receipt; caller-supplied status/evidence rejected | Run opt-in integration and add verified lesson retrieval |
 | W-10 | Behavioral benchmark | Planned | Current benchmark is smoke test | Build broader suite |
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
@@ -309,13 +309,13 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 
 | ID | Task-table item | Change now made | Evidence status | Next gate |
 |---|---|---|---|---|
-| INT-01 | Separate opt-in API | Added CorrectionWorkflow.verify_behavior with allow_execution defaulting to false | Focused unit tests added; CI pending | Confirm normal run never calls the verifier |
-| INT-02 | Receipt-gated success | Successful verifier result routes through LearningLedger.append_verified_record | Orchestration test added; receipt validation is separately covered in verifier tests | Run full CI and inspect source-hash binding |
-| INT-03 | Failed behavioral result | Failed cases are recorded only as UNVERIFIED; no VERIFIED promotion | Focused test added | Confirm failure status and compact summary |
-| INT-04 | No silent execution | Normal CorrectionWorkflow.run does not call the behavioral verifier even when configured | Regression test added | Keep this invariant in future refactors |
+| INT-01 | Separate opt-in API | Added CorrectionWorkflow.verify_behavior with allow_execution defaulting to false | Focused unit tests added; CI run #185 passed 127 tests | Confirm normal run never calls the verifier |
+| INT-02 | Receipt-gated success | Successful verifier result routes through LearningLedger.append_verified_record | Orchestration test added; receipt validation is separately covered in verifier tests; CI passed | Run full CI and inspect source-hash binding |
+| INT-03 | Failed behavioral result | Failed cases are recorded only as UNVERIFIED; no VERIFIED promotion | Focused test added; CI passed | Confirm failure status and compact summary |
+| INT-04 | No silent execution | Normal CorrectionWorkflow.run does not call the behavioral verifier even when configured | Regression test added; CI passed | Keep this invariant in future refactors |
 | INT-05 | Runtime execution | Not performed | No Docker daemon, candidate execution, image pull, or model inference performed | Opt-in integration requires preloaded pinned image and fresh RAM preflight |
 
-**Current phase result: INTEGRATION IMPLEMENTED, VERIFICATION PENDING.** The normal correction path remains non-executing. Behavioral checks require a separately configured verifier and an explicit opt-in flag; successful evidence can be recorded only through the receipt-checked ledger method.
+**Current phase result: INTEGRATION IMPLEMENTED, CI VERIFIED, REAL SANDBOX UNVERIFIED.** PR #12 passed 127 unit tests across Python 3.10–3.13. The normal correction path remains non-executing. Behavioral checks require a separately configured verifier and explicit opt-in; successful evidence can be recorded only through the receipt-checked ledger method. No real Docker integration run or Windows resource measurement has been performed.
 
 ## Final recommendation
 
