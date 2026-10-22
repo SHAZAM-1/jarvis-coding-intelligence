@@ -14,8 +14,10 @@ reproducible evaluation, verified learning, and resource-aware operation.
 - Resource-aware task routing: fast, balanced, and deep reasoning budgets.
 - Deterministic error classification and bounded correction proposals.
 - Non-executing Python syntax verification.
-- Append-only, privacy-conscious learning ledger with evidence-gated VERIFIED
-  records.
+- Correction workflow that connects bounded proposals, strict candidate
+  extraction, syntax checks, and conservative ledger recording.
+- Append-only, privacy-conscious learning ledger that rejects caller-supplied
+  VERIFIED claims and records syntax-valid candidates as SYNTAX_VALID.
 - Small deterministic coding smoke checks (not a reliable accuracy benchmark).
 - Unit tests and Python 3.10–3.13 CI.
 
@@ -24,13 +26,16 @@ Windows or Ollama will never use high CPU or RAM. If measured available RAM is
 below 1536 MiB, inference is paused before a request is sent. This default
 threshold is configurable as documented below.
 
-These features do not yet constitute behavioral self-correction or a reliable
-coding-model accuracy benchmark. The smoke checks validate selected Python AST
-structures for the three built-in tasks; they do not execute generated code or
-prove full semantic correctness. The ledger records caller-supplied evidence
-but does not run tests itself and cannot prove that evidence is genuine. No
-candidate model is considered stronger until it is tested on the same
-reproducible coding tasks and resource measurements as the current model.
+The correction workflow is an initial end-to-end slice, not behavioral
+self-correction. It extracts exactly one fenced Python candidate, parses it
+without executing it, and records SYNTAX_VALID only when that parse succeeds.
+It never applies or executes candidate code. A syntax-valid candidate is not
+a verified fix. Caller-supplied VERIFIED status/evidence is rejected until a
+trusted behavioral verifier can produce evidence from tests it actually ran.
+The smoke checks validate selected Python AST structures for three built-in
+tasks; they do not prove full semantic correctness. No candidate model is
+considered stronger until it is tested on the same reproducible coding tasks
+and resource measurements as the current model.
 
 ## Adaptive reasoning and resource controls
 
@@ -77,14 +82,36 @@ The Ollama client request timeout defaults to 90 seconds. Explicit timeouts
 must be finite, greater than zero, and no more than 600 seconds; NaN, infinity,
 and larger values are rejected during client construction.
 
-## Verified learning ledger
+## Correction workflow
+
+`CorrectionWorkflow` coordinates these bounded stages:
+
+1. Ask the existing corrector for a proposal.
+2. Extract one unambiguous, non-empty fenced ```python candidate.
+3. Parse the candidate with Python's AST parser without executing it.
+4. Append a compact ledger entry tied to the candidate's SHA-256 digest.
+5. Return explicit flags stating that the candidate was not applied, executed,
+   or behaviorally verified.
+
+If the response has no single candidate block, it is recorded as UNVERIFIED.
+A syntax failure is also UNVERIFIED; successful parsing produces SYNTAX_VALID.
+The workflow does not write candidate code into project files.
+
+Run the deterministic workflow tests:
+
+```powershell
+python -m unittest tests.test_correction_workflow tests.test_learning_ledger tests.test_self_corrector -v
+```
+
+## Learning ledger and evidence policy
 
 The runtime ledger defaults to `data/learning_ledger.jsonl`, which is ignored
 by Git. Each entry stores a source hash, diagnostic category, bounded summary,
-and status. A VERIFIED record additionally requires caller-supplied commands,
-zero exit code, a positive test count, and an ISO timestamp. The ledger does
-not execute tests and does not independently prove that supplied evidence is
-genuine. It never stores the full source code or raw failure output by design.
+and conservative status. The workflow may record SYNTAX_VALID only after its
+own syntax check succeeds. The ledger rejects caller-supplied VERIFIED status
+and arbitrary verification dictionaries. VERIFIED remains unavailable until a
+trusted behavioral verifier captures results from tests it actually runs.
+The ledger never stores full source code or raw failure output by design.
 
 ## Coding smoke checks
 
