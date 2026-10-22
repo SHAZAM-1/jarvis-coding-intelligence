@@ -137,6 +137,30 @@ closed when prerequisites are missing. Unit tests mock Docker; a real sandbox
 run and Windows resource measurement remain pending. The ledger never stores
 full source code, raw failure output, or test inputs by design.
 
+## Optional real-Docker integration tests
+
+The real sandbox tests are skipped by default. They never pull an image. To
+run them manually on a machine where Docker is already available:
+
+1. Check local image digests with `docker image ls --digests`.
+2. Choose an image that is already present and use its exact repository plus
+   immutable SHA-256 digest. Do not pull or download an image for this test.
+3. Recheck available RAM; the runner requires at least 1536 MiB free.
+4. In PowerShell, set the opt-in flag and the exact local digest, then run:
+
+```powershell
+$env:JARVIS_RUN_DOCKER_SANDBOX_TESTS = "1"
+$env:JARVIS_SANDBOX_IMAGE = Read-Host "Enter the exact local repository@sha256 digest"
+python -m unittest discover -s tests -p "test_behavioral_verifier_integration.py" -v
+Remove-Item Env:JARVIS_RUN_DOCKER_SANDBOX_TESTS -ErrorAction SilentlyContinue
+Remove-Item Env:JARVIS_SANDBOX_IMAGE -ErrorAction SilentlyContinue
+```
+
+If Docker, the pinned image, or RAM prerequisites are missing, the integration
+tests skip. The suite checks a successful callable, wrong-output rejection,
+network isolation, and timeout behavior. Do not run this opt-in suite until
+you are ready to execute candidate code inside the configured Docker sandbox.
+
 ## Verified lesson retrieval
 
 The learning ledger exposes `find_verified_lessons(category=None, limit=5)`
