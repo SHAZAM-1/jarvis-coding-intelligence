@@ -25,7 +25,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-05 | Error analyzer | Implemented | Classifies common errors; ambiguous/unseen errors can be misclassified | Expand tests and preserve unknown cases | High |
 | P-06 | Self-correction engine | Implemented | Produces bounded proposals; does not apply changes or prove correctness | Connect proposals to independent verification | Critical |
 | P-07 | Syntax verification | Implemented | Parses Python without executing it | Keep as an early gate; add separate behavioral testing | Critical |
-| P-08 | Learning ledger | Implemented; receipt-gated VERIFIED path added in feature branch | Append-only records, bounded summaries, redaction; direct status assignment and caller-supplied evidence rejected | Validate real sandbox integration and add safe retrieval | Critical |
+| P-08 | Learning ledger | Receipt-gated VERIFIED path and conservative retrieval implemented on feature branch | Append-only records, bounded summaries, redaction; direct status assignment and caller-supplied evidence rejected | Validate real sandbox integration; later evaluate semantic retrieval | Critical |
 | P-09 | Coding smoke benchmark | Implemented in draft PR | Three fixed tasks; narrow coverage | Expand into behavioral benchmark | Critical |
 | P-10 | AST validation | Implemented in draft PR | Checks structure for built-in benchmark tasks | Verify locally; extend regression coverage | High |
 | P-11 | Strict AST/audit-timeout checks | Implemented in PR #7 | GitHub Actions passed on recorded head; local verification still outstanding in latest known status | Run local tests and inspect Git status | High |
@@ -53,6 +53,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#10 — Fail-closed behavioral verification design](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/10) | Behavioral verifier design | Draft PR open; CI run #122 passed 102 tests | Defines Docker-only, opt-in, no-image-pull execution policy and evidence requirements |
 | [#11 — Docker behavioral verifier](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/11) | Initial isolated behavioral verifier | Draft PR #11 open; CI run #167 passed 121 tests on Python 3.10–3.13; no real Docker run | Runs JSON-compatible callable cases only in a pinned, preloaded Docker image; no host fallback or automatic pull |
 | [#12 — Explicit opt-in behavioral workflow](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/12) | Correction workflow integration | Draft PR open; CI run #185 passed 127 tests on Python 3.10–3.13 | Normal correction stays syntax-only; separate behavioral stage requires explicit opt-in and receipt-gated learning |
+| [#13 — Bounded verified lesson retrieval](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/13) | Verified lesson retrieval | Draft PR open; CI run #197 passed 130 tests on Python 3.10–3.13 | Returns only recent structurally valid VERIFIED records; local ledger remains non-tamper-proof |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -119,7 +120,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | M-01 | Full behavioral correction workflow | Initial syntax-only slice now connects proposal, candidate parsing, and ledger recording | Add trusted, isolated behavioral verification and regression checks | Critical | Core modules and safe execution isolation |
 | M-02 | Behavioral verification | Correct syntax does not guarantee behavior | Run trusted tests in controlled environment | Critical | Verification architecture |
 | M-03 | Independent behavioral verification evidence | Ledger blocks direct SYNTAX_VALID/VERIFIED claims and independently parses before SYNTAX_VALID; behavioral evidence is still missing | Capture test results from a trusted verifier that actually ran them | Critical | Verification runner and execution isolation |
-| M-04 | Verified lesson retrieval | Stored lessons are not a complete learning mechanism | Retrieve relevant validated lessons with bounded context | Critical | Learning ledger |
+| M-04 | Verified lesson retrieval | Initial bounded retrieval implemented on feature branch | Retrieve recent structurally valid VERIFIED records by category/limit; no semantic ranking yet | High | Learning ledger |
 | M-05 | Regression protection | Fix may solve one problem and break another | Run focused regression tests | Critical | Behavioral verification |
 | M-06 | Broad coding benchmark | Three tasks cannot establish general coding ability | Add coding, debugging, edge-case, and refactoring tasks | Critical | Benchmark infrastructure |
 | M-07 | Model comparison | Inventory cannot rank models | Evaluate candidates on identical tasks/settings | High | Expanded benchmark |
@@ -156,7 +157,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | E-11 | Limited static quality gates | Unit tests miss style/maintainability issues | Evaluate Ruff and static checks in CI | New changes pass agreed gates |
 | E-12 | No system-wide resource coordination | Other processes can consume RAM after preflight | Recheck before expensive work | Low-memory scenarios tested |
 | E-13 | Resource overrides can increase usage | Overrides may exceed conservative defaults | Validate resolved settings | Effective settings visible; invalid values rejected |
-| E-14 | Incomplete learning lifecycle | Stale/conflicting lessons may mislead | Add versioning, provenance, retrieval controls | Retrieved lessons have source and status |
+| E-14 | Incomplete learning lifecycle | Basic receipt/schema-checked retrieval added; ledger is still editable and non-tamper-proof | Add versioning, provenance, staleness/conflict controls, and retrieval evaluation | Retrieved lessons expose source hash/status and compact receipt; malformed entries are ignored |
 | E-15 | Limited observability | Failures hard to diagnose | Structured privacy-conscious diagnostics | Failures categorized without sensitive leaks |
 | E-16 | Stacked PR management | Changes may use incomplete parent branches | Verify dependency chain | Each PR checked against intended base |
 | E-17 | Local verification outstanding | CI does not confirm laptop behavior | Test latest branch locally | Tests pass and working-tree status inspected |
@@ -176,7 +177,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-06 | AST validation | Draft PR #6 | CI passed on recorded head | Verify latest branch and expand checks |
 | W-07 | Strict AST/audit-timeout validation | Draft PR #7 | CI passed on recorded head | Run local tests and inspect status |
 | W-08 | Correction-to-ledger workflow | Draft PR #9: proposal/syntax slice passed CI; PR #12 explicit behavioral method passed CI | Normal run never invokes behavioral execution; verify_behavior requires explicit opt-in | Verify PR #12 CI and inspect integration diff; real Docker run remains pending |
-| W-09 | Evidence-backed learning | Partial: syntax and receipt-gated behavioral records implemented; real Docker run pending | Candidate hash bound to verifier receipt; caller-supplied status/evidence rejected | Run opt-in integration and add verified lesson retrieval |
+| W-09 | Evidence-backed learning | Partial: receipt-gated records and bounded VERIFIED retrieval implemented; real Docker run pending | Candidate hash bound to receipt; caller-supplied status/evidence rejected; malformed stored entries filtered | Run opt-in sandbox integration and evaluate retrieval impact on future tasks |
 | W-10 | Behavioral benchmark | Planned | Current benchmark is smoke test | Build broader suite |
 | W-11 | Real-model resource measurement | Pending | No recent inference result established | Recheck RAM |
 | W-12 | Model accuracy comparison | Pending | No comparable results | Benchmark under controlled settings |
@@ -199,7 +200,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 |---|---|---|---|---|---|
 | L-01 | Model correctness | Responses can be wrong | Bounded correction and validation infrastructure | No complete behavioral verification | Independent tests |
 | L-02 | Reasoning quality | Prompts request evidence/edge cases | Better instructions and routing | No demonstrated accuracy gain | Representative task comparison |
-| L-03 | Learning | Syntax records plus receipt-gated VERIFIED path implemented | Append-only ledger, source-hash binding, verifier-issued receipt | Real Docker integration untested; no verified lesson retrieval cycle | Add retrieval with provenance and compare future outcomes against baseline |
+| L-03 | Learning | Syntax records, receipt-gated VERIFIED writes, and bounded VERIFIED retrieval implemented | Append-only ledger, source-hash binding, verifier-issued receipt, schema-checked retrieval | Real Docker integration untested; no semantic retrieval or measured future-task benefit | Add provenance-aware semantic retrieval only after baseline evaluation |
 | L-04 | Resource efficiency | Profiles and RAM checks exist | Bounded settings/preflight | Savings unmeasured | Controlled resource benchmark |
 | L-05 | Model selection | Models can be inventoried | Read-only audit | No coding-performance ranking | Identical-task comparisons |
 | L-06 | Verification | Syntax and AST checks exist | Stronger than marker-only checks | Does not prove behavior | Restricted behavioral testing |
@@ -316,6 +317,18 @@ The target machine has 8 GB RAM. Earlier context recorded low available-memory h
 | INT-05 | Runtime execution | Not performed | No Docker daemon, candidate execution, image pull, or model inference performed | Opt-in integration requires preloaded pinned image and fresh RAM preflight |
 
 **Current phase result: INTEGRATION IMPLEMENTED, CI VERIFIED, REAL SANDBOX UNVERIFIED.** PR #12 passed 127 unit tests across Python 3.10–3.13. The normal correction path remains non-executing. Behavioral checks require a separately configured verifier and explicit opt-in; successful evidence can be recorded only through the receipt-checked ledger method. No real Docker integration run or Windows resource measurement has been performed.
+
+## 15. Conservative verified-lesson retrieval — 2026-10-22
+
+| ID | Task-table item | Change now made | Evidence status | Next gate |
+|---|---|---|---|---|
+| LR-01 | Bounded ledger scan | Added a bounded file-size limit, bounded line length, and recent-record tail | Unit tests added; CI pending | Confirm malformed/oversized entries fail closed |
+| LR-02 | VERIFIED-only retrieval | Added category and result-limit filtering for structurally valid VERIFIED records | Test covers valid receipt retrieval plus malformed/forged record exclusion | Verify the latest Python matrix |
+| LR-03 | Receipt consistency | Retrieval checks candidate hash, manifest hash, image digest, policy, case counts, success/exit status, and timezone-aware timestamps | Code validation and tests are in the feature branch | Review tampering limits; local JSONL is not cryptographically tamper-proof |
+| LR-04 | Privacy | Retrieval returns compact records only; no source code or test inputs are stored by the API | Covered by ledger record tests | Keep summaries bounded/redacted |
+| LR-05 | Learning effectiveness | No semantic retrieval or future-task improvement is claimed | Not measured | Build a no-retrieval baseline before adding semantic search |
+
+**Current phase result: IMPLEMENTED, CI PASSED.** PR #13 passed 130 unit tests across Python 3.10–3.13. This is schema-checked recency/category retrieval, not semantic search. It cannot prove that a local JSONL file has never been manually modified. Real Docker integration and measured benefit to future corrections remain pending.
 
 ## Final recommendation
 

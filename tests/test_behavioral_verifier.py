@@ -128,6 +128,13 @@ class BehavioralVerifierTests(unittest.TestCase):
             stored = Path(directory, "learning.jsonl").read_text(encoding="utf-8")
             self.assertNotIn("return a + b", stored)
             self.assertNotIn('"expected": 3', stored)
+            lessons = ledger.find_verified_lessons(
+                category="assertion_failure", limit=5
+            )
+            self.assertEqual(len(lessons), 1)
+            self.assertEqual(lessons[0]["status"], "VERIFIED")
+            self.assertEqual(lessons[0]["source_sha256"], result.receipt.source_sha256)
+            self.assertEqual(lessons[0]["verification"]["passed_count"], 1)
 
     def test_wrong_output_is_a_failed_behavioral_result(self):
         process = FakeProcess(b'{"ok":true,"value":4}\n')

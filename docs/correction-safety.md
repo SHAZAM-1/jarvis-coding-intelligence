@@ -61,3 +61,13 @@ a restricted Docker container with a preloaded, digest-pinned image. It has
 unit tests using a fake process, but no real Docker sandbox run has been
 performed. Never add a host-execution fallback; review the exact Docker
 configuration and test it with a preloaded image before relying on isolation.
+
+## Verified lesson retrieval
+
+The ledger's retrieval API returns only structurally valid VERIFIED records and
+rechecks candidate-hash and receipt consistency. It ignores malformed entries,
+caps the scanned tail and file size, and returns summaries plus compact
+verification metadata, never raw source or test inputs. The local JSONL remains
+editable and is not cryptographically tamper-proof; retrieval validation is a
+guard against malformed/inconsistent records, not a proof of provenance.
+

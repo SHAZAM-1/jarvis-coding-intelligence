@@ -7,15 +7,20 @@ verifier; real sandbox integration remains unverified.
 
 import hashlib
 import json
+import math
 import os
 import re
 import threading
+from collections import deque
 from datetime import datetime
 
 from src.verification_runner import verify_python_source
 
 
 STATUSES = {"UNVERIFIED", "SYNTAX_VALID", "VERIFIED"}
+MAX_LEDGER_LINE_CHARS = 8192
+MAX_LEDGER_SCAN_RECORDS = 1000
+MAX_LEDGER_FILE_BYTES = 16 * 1024 * 1024
 _CATEGORIES = {
     "missing_import", "syntax_error", "missing_attribute", "missing_key",
     "type_error", "assertion_failure", "timeout", "connection_error",
@@ -49,6 +54,90 @@ def _validate_hash(source_sha256):
     ):
         raise LearningLedgerError("source_sha256 must be a lowercase SHA-256 hex digest.")
     return source_sha256
+
+
+def _valid_stored_verified_record(record):
+    """Validate the persisted evidence shape; the local JSONL is not tamper-proof."""
+    if (
+        not isinstance(record, dict)
+        or type(record.get("schema_version")) is not int
+        or record.get("schema_version") != 1
+    ):
+        return False
+    if record.get("status") != "VERIFIED":
+        return False
+    try:
+        source_hash = _validate_hash(record.get("source_sha256"))
+    except LearningLedgerError:
+        return False
+    category = record.get("category")
+    if (
+        not isinstance(category, str)
+        or category not in _CATEGORIES
+        or not isinstance(record.get("summary"), str)
+        or len(record["summary"]) > 240
+    ):
+        return False
+    evidence = record.get("verification")
+    if not isinstance(evidence, dict):
+        return False
+    required = {
+        "source_sha256", "manifest_sha256", "image_digest", "sandbox_policy",
+        "case_count", "answered_count", "passed_count", "failed_count",
+        "exit_code", "elapsed_seconds", "timestamp", "success",
+    }
+    if set(evidence) != required:
+        return False
+    if evidence.get("source_sha256") != source_hash:
+        return False
+    if not re.fullmatch(r"[0-9a-f]{64}", str(evidence.get("manifest_sha256", ""))):
+        return False
+    if not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9./:_-]*@sha256:[0-9a-f]{64}",
+        str(evidence.get("image_digest", "")),
+    ):
+        return False
+    if evidence.get("sandbox_policy") != "docker-json-callable-v1":
+        return False
+    case_count = evidence.get("case_count")
+    answered_count = evidence.get("answered_count")
+    passed_count = evidence.get("passed_count")
+    failed_count = evidence.get("failed_count")
+    exit_code = evidence.get("exit_code")
+    if any(
+        not isinstance(value, int) or isinstance(value, bool)
+        for value in (
+            case_count, answered_count, passed_count, failed_count, exit_code
+        )
+    ):
+        return False
+    if (
+        case_count < 1
+        or answered_count != case_count
+        or passed_count != case_count
+        or failed_count != 0
+        or exit_code != 0
+        or evidence.get("success") is not True
+    ):
+        return False
+    elapsed = evidence.get("elapsed_seconds")
+    if (
+        not isinstance(elapsed, (int, float))
+        or isinstance(elapsed, bool)
+        or not math.isfinite(elapsed)
+        or elapsed < 0
+    ):
+        return False
+    for timestamp in (record.get("recorded_at"), evidence.get("timestamp")):
+        if not isinstance(timestamp, str):
+            return False
+        try:
+            parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return False
+    return True
 
 
 class LearningLedger:
@@ -96,6 +185,66 @@ class LearningLedger:
         return self._append_record(
             verification["sha256"], category, summary, status="SYNTAX_VALID"
         )
+
+    def find_verified_lessons(self, category=None, limit=5):
+        """Return recent, structurally valid VERIFIED lessons without source code.
+
+        The JSONL file is local data, not a tamper-proof database. This method
+        validates record structure and receipt consistency but cannot prove a
+        manually edited file was written by a real verifier.
+        """
+        if (
+            not isinstance(limit, int)
+            or isinstance(limit, bool)
+            or not 1 <= limit <= 20
+        ):
+            raise ValueError("limit must be an integer between 1 and 20.")
+        if category is not None and (
+            not isinstance(category, str) or category not in _CATEGORIES
+        ):
+            raise LearningLedgerError("category must be a recognized diagnostic category.")
+        if not os.path.exists(self.path):
+            return []
+        try:
+            if os.path.getsize(self.path) > MAX_LEDGER_FILE_BYTES:
+                raise LearningLedgerError(
+                    "Learning ledger exceeds the bounded retrieval size limit."
+                )
+        except OSError as exc:
+            raise LearningLedgerError("Could not inspect the learning ledger.") from exc
+
+        tail = deque(maxlen=MAX_LEDGER_SCAN_RECORDS)
+        try:
+            with open(
+                self.path, "r", encoding="utf-8", errors="replace"
+            ) as stream:
+                while True:
+                    line = stream.readline(MAX_LEDGER_LINE_CHARS + 1)
+                    if not line:
+                        break
+                    if len(line) > MAX_LEDGER_LINE_CHARS:
+                        while line and not line.endswith("\n"):
+                            line = stream.readline(MAX_LEDGER_LINE_CHARS + 1)
+                        tail.append(None)
+                    else:
+                        tail.append(line)
+        except OSError as exc:
+            raise LearningLedgerError("Could not read the learning ledger.") from exc
+
+        lessons = []
+        for line in tail:
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if not _valid_stored_verified_record(record):
+                continue
+            if category is not None and record["category"] != category:
+                continue
+            lessons.append(record)
+        return lessons[-limit:][::-1]
 
     def append_verified_record(self, source, category, summary, receipt):
         """Record VERIFIED only from a verifier-issued receipt bound to source."""
