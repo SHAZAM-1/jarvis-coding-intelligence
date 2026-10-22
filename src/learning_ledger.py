@@ -87,9 +87,13 @@ def _verification_evidence(evidence, source_sha256):
     if not isinstance(timestamp, str):
         raise LearningLedgerError("Verification requires an ISO timestamp.")
     try:
-        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        parsed_timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     except ValueError as exc:
         raise LearningLedgerError("Verification timestamp must be ISO-8601.") from exc
+    if parsed_timestamp.tzinfo is None:
+        raise LearningLedgerError(
+            "Verification timestamp must include a timezone."
+        )
 
     return {
         "commands": [_safe_text(command, 200) for command in commands[:3]],
