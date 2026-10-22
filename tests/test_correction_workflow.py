@@ -162,6 +162,20 @@ class CorrectionWorkflowTests(unittest.TestCase):
         self.assertNotIn("private diagnostic", str(result))
         self.assertEqual(result["ledger_record"]["status"], "UNVERIFIED")
 
+    def test_invalid_or_timezone_naive_timestamp_never_verifies(self):
+        digest = hashlib.sha256(SOURCE.encode("utf-8")).hexdigest()
+        for timestamp in ("", "not-a-timestamp", "2026-10-22T00:00:00"):
+            with self.subTest(timestamp=timestamp):
+                evidence = self._evidence(digest)
+                evidence["timestamp"] = timestamp
+                verifier = Mock(return_value=evidence)
+                result = CorrectionWorkflow(
+                    self.corrector, self.ledger, verifier, "isolated-test-adapter"
+                ).run("Implement add", "pass", "AssertionError: expected sum")
+                self.assertEqual(result["status"], "behavior_failed")
+                self.assertFalse(result["verified"])
+                self.assertEqual(result["ledger_record"]["status"], "UNVERIFIED")
+
     def test_verifier_identity_must_match_configured_adapter(self):
         digest = hashlib.sha256(SOURCE.encode("utf-8")).hexdigest()
         verifier = Mock(return_value=self._evidence(digest, verifier_id="other"))
