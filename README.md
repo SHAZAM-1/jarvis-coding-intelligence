@@ -85,6 +85,14 @@ The Ollama client request timeout defaults to 90 seconds. Explicit timeouts
 must be finite, greater than zero, and no more than 600 seconds; NaN, infinity,
 and larger values are rejected during client construction.
 
+## Prompt-injection boundary
+
+The correction component passes task text, source, failure output, and analyzer
+excerpts to the model as one JSON-encoded untrusted-data object. The prompt
+explicitly rejects instructions embedded in those fields. This reduces
+ambiguity but is not a security sandbox or a guarantee against prompt
+injection; model output never grants execution or file-write authority.
+
 ## Correction workflow
 
 `CorrectionWorkflow` coordinates these bounded stages:
