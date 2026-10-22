@@ -115,7 +115,7 @@ class CorrectionWorkflow:
 
         syntax = verify_python_source(source, filename=filename)
         category = proposal_result.get("error_category")
-        if category not in _ALLOWED_CATEGORIES:
+        if not isinstance(category, str) or category not in _ALLOWED_CATEGORIES:
             category = "unknown"
 
         if not syntax["syntax_valid"]:
