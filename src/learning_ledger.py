@@ -1,8 +1,8 @@
 """Append-only ledger for compact lessons with conservative evidence labels.
 
-Only workflow-produced syntax checks may set SYNTAX_VALID. This ledger does not
-execute candidate code, and VERIFIED is reserved until a trusted behavioral
-verifier can produce its own evidence.
+Only the dedicated syntax-recording method may set SYNTAX_VALID, and it parses
+the source itself. This ledger does not execute candidate code; VERIFIED is
+reserved until a trusted behavioral verifier can produce its own evidence.
 """
 
 import hashlib
