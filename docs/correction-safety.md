@@ -16,7 +16,7 @@
 - Append-only JSONL learning ledger with compact hashes, bounded summaries,
   common secret-like text redaction, independently parsed SYNTAX_VALID status,
   and VERIFIED gated by a verifier-issued behavioral receipt.
-- No automatic file changes; candidate execution is separate, opt-in, and not wired into the correction workflow.
+- No automatic file changes; a separate verify_behavior method requires explicit opt-in, and normal correction never invokes it automatically.
 
 ## Resource guard limitations
 
