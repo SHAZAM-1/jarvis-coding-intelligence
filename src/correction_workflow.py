@@ -37,6 +37,10 @@ class CorrectionWorkflow:
             raise TypeError("corrector must provide a callable propose method")
         if not callable(getattr(ledger, "append_record", None)):
             raise TypeError("ledger must provide a callable append_record method")
+        if not callable(getattr(ledger, "append_syntax_valid_record", None)):
+            raise TypeError(
+                "ledger must independently validate syntax-valid records"
+            )
         self.corrector = corrector
         self.ledger = ledger
 
@@ -78,20 +82,24 @@ class CorrectionWorkflow:
             }
 
         verification = verify_python_source(candidate, filename=filename)
-        status = (
-            "SYNTAX_VALID" if verification["syntax_valid"] else "UNVERIFIED"
-        )
-        summary = (
-            "Candidate passed Python syntax parsing only."
-            if verification["syntax_valid"]
-            else "Candidate failed Python syntax parsing."
-        )
-        ledger_record = self.ledger.append_record(
-            source_sha256=verification["sha256"],
-            category=proposal_result.get("error_category", "unknown"),
-            summary=summary,
-            status=status,
-        )
+        category = proposal_result.get("error_category", "unknown")
+        if verification["syntax_valid"]:
+            summary = "Candidate passed Python syntax parsing only."
+            # The ledger independently parses the same candidate before it
+            # allows a SYNTAX_VALID record.
+            ledger_record = self.ledger.append_syntax_valid_record(
+                source=candidate,
+                category=category,
+                summary=summary,
+            )
+        else:
+            summary = "Candidate failed Python syntax parsing."
+            ledger_record = self.ledger.append_record(
+                source_sha256=verification["sha256"],
+                category=category,
+                summary=summary,
+                status="UNVERIFIED",
+            )
         return {
             "status": verification["status"],
             "proposal_result": proposal_result,
