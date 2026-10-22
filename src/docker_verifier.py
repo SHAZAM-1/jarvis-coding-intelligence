@@ -240,6 +240,21 @@ def _cleanup_container(docker_executable, container_name):
             pass
 
 
+def _prepare_nonroot_workspace(workspace, *file_paths):
+    """Make the bind-mounted verifier inputs readable to the unprivileged UID.
+
+    POSIX TemporaryDirectory defaults to mode 0700, which prevents a different
+    container UID from traversing it. Do not chmod on Windows: its chmod
+    implementation maps only a subset of POSIX modes and can mark files
+    read-only in ways that interfere with temporary-directory cleanup.
+    """
+    if os.name == "nt":
+        return
+    for path in file_paths:
+        os.chmod(path, 0o644)
+    os.chmod(workspace, 0o755)
+
+
 class DockerFunctionVerifier:
     """Verify JSON-callable functions in an opt-in, network-disabled container.
 
@@ -346,6 +361,7 @@ class DockerFunctionVerifier:
             with open(runner_path, "w", encoding="utf-8", newline="\n") as stream:
                 stream.write(_RUNNER_SOURCE)
 
+            _prepare_nonroot_workspace(workspace, candidate_path, runner_path)
             mount_source = os.path.abspath(workspace).replace("\\", "/")
             if "," in mount_source:
                 raise VerifierExecutionError(
@@ -357,7 +373,7 @@ class DockerFunctionVerifier:
                 "--name", container_name,
                 "--network=none", "--read-only", "--memory=256m", "--cpus=0.5",
                 "--pids-limit=32", "--cap-drop=ALL",
-                "--security-opt=no-new-privileges", "--user=0:0",
+                "--security-opt=no-new-privileges", "--user=65532:65532",
                 "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
                 "--env", "PYTHONDONTWRITEBYTECODE=1",
                 "--mount", f"type=bind,source={mount_source},target=/workspace,readonly",
