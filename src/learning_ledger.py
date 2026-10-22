@@ -1,8 +1,8 @@
 """Append-only ledger for compact lessons with conservative evidence labels.
 
 Only the dedicated syntax-recording method may set SYNTAX_VALID, and it parses
-the source itself. This ledger does not execute candidate code; VERIFIED is
-reserved until a trusted behavioral verifier can produce its own evidence.
+the source itself. VERIFIED requires a receipt from the Docker behavioral
+verifier; real sandbox integration remains unverified.
 """
 
 import hashlib
@@ -70,8 +70,8 @@ class LearningLedger:
         """Append an UNVERIFIED record; caller-supplied proof is never trusted."""
         if status == "VERIFIED":
             raise LearningLedgerError(
-                "VERIFIED status is reserved until a trusted behavioral "
-                "verifier can supply its own evidence."
+                "VERIFIED requires append_verified_record and a trusted "
+                "behavioral-verification receipt."
             )
         if status != "UNVERIFIED":
             raise LearningLedgerError(
