@@ -70,8 +70,8 @@ class LearningLedger:
         """Append an UNVERIFIED record; caller-supplied proof is never trusted."""
         if status == "VERIFIED":
             raise LearningLedgerError(
-                "VERIFIED requires append_verified_record and a trusted "
-                "behavioral-verification receipt."
+                "VERIFIED requires append_verified_record with a receipt "
+                "from a trusted behavioral verifier."
             )
         if status != "UNVERIFIED":
             raise LearningLedgerError(
