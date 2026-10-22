@@ -29,10 +29,9 @@ records provenance in the learning ledger.
 This remains an incremental behavioral-verification solution. The opt-in
 `DockerFunctionVerifier` provides a restricted, network-disabled test adapter
 for pure JSON-callable functions, with bounded CPU, memory, processes, runtime,
-and output. GitHub Actions run #260 passed all four supported Python versions; the Python
-3.10 job ran 121 tests. A follow-up adds a regression check for extremely large
-integer timeout values before the next CI run. CI mocks the Docker boundary, so
-no real container run is claimed. It does not cover arbitrary project tests. Without a
+and output. GitHub Actions run #265 passed all four supported Python versions; the Python
+3.10 job ran 121 tests, including the extremely-large-integer timeout guard.
+CI mocks the Docker boundary, so no real container run is claimed. It does not cover arbitrary project tests. Without a
 configured verifier, outcomes remain `SYNTAX_VALID` or `UNVERIFIED`, never
 `VERIFIED`.
 
@@ -203,9 +202,9 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
-| W-17 | Docker behavioral verifier | Implemented; CI run #260 passed; extreme-timeout follow-up pending CI | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, and bounded host output | Verify the extreme-timeout regression, then perform a real Docker run only with a locally available image and explicit runtime preflight | 
+| W-17 | Docker behavioral verifier | Implemented; CI run #265 passed | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, bounded host output, and extreme-timeout rejection | CI mocks Docker; perform a real Docker run only with a locally available image and explicit runtime preflight | 
 | W-18 | Real Docker smoke test | Pending; not run | CI does not launch Docker or pull images; Windows/Docker Desktop behavior is not yet verified | Check current free RAM and Docker state; use only an image already installed locally; verify one small pure-function case without model inference |
-| W-16 | Workflow coordinator verification | Coordinator and optional adapter implemented; CI run #258 passed | Run #258 passed on Python 3.10–3.13; Python 3.10 ran 121 tests | Continue with a real Docker smoke test and broader project-level verification; do not merge stacked PRs yet |
+| W-16 | Workflow coordinator verification | Coordinator and optional adapter implemented; CI run #265 passed | Run #265 passed on Python 3.10–3.13; Python 3.10 ran 121 tests | Continue with a real Docker smoke test and broader project-level verification; do not merge stacked PRs yet |
 
 ### Current blockers
 
