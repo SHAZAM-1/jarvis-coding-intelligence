@@ -17,8 +17,11 @@ The main limitation is **integration and evidence**. The components do not yet f
 A new implementation branch, `feat/correction-verification-learning-workflow`,
 is building the first safe coordinator slice in draft PR #17. GitHub Actions
 run #239 passed on Python 3.10, 3.11, 3.12, and 3.13; the Python 3.10 job ran
-106 unit tests. The slice strictly extracts one Python code block from the
-model's `PROPOSED FIX` section, applies the existing
+106 unit tests. The subsequent run #245 exposed a test assertion that assumed
+the prompt phrase was on one line after the instruction was intentionally
+wrapped for readability. The assertion is being corrected to normalize
+whitespace; no runtime failure was identified in that run. The slice strictly
+extracts one Python code block from the model's `PROPOSED FIX` section, applies the existing
 non-executing syntax gate, optionally delegates behavioral checks to a configured
 trusted adapter, checks the returned source hash and verifier identity, and
 records provenance in the learning ledger.
@@ -194,7 +197,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
-| W-16 | Workflow coordinator verification | First slice implemented; CI passed | GitHub Actions run #239 passed all four supported Python versions; 106 tests in Python 3.10 job | Add negative category regression coverage; build a real restricted behavioral verifier; do not merge stacked PRs yet |
+| W-16 | Workflow coordinator verification | First slice implemented; latest CI run #245 failed on a prompt-assertion formatting mismatch | Run #239 passed all four supported Python versions; run #245 failed because the expected phrase crossed a line break after prompt wrapping | Normalize whitespace in the assertion, rerun CI, then continue toward a real restricted behavioral verifier; do not merge stacked PRs yet |
 
 ### Current blockers
 
