@@ -9,14 +9,6 @@ from src.learning_ledger import LearningLedger, LearningLedgerError
 
 
 HASH = "a" * 64
-VALID_EVIDENCE = {
-    "commands": ["python -m unittest tests.test_example -v"],
-    "exit_code": 0,
-    "test_count": 4,
-    "timestamp": "2026-10-21T02:00:00Z",
-}
-
-
 class LearningLedgerTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -34,27 +26,23 @@ class LearningLedgerTests(unittest.TestCase):
         saved = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(saved["source_sha256"], HASH)
 
-    def test_verified_requires_successful_test_evidence(self):
-        with self.assertRaises(LearningLedgerError):
+    def test_verified_status_is_reserved_for_trusted_behavioral_verifier(self):
+        with self.assertRaisesRegex(LearningLedgerError, "trusted behavioral verifier"):
             self.ledger.append_record(
                 HASH, "test_error", "fixed", status="VERIFIED"
             )
 
-    def test_verified_record_accepts_explicit_evidence(self):
-        record = self.ledger.append_record(
-            HASH, "test_error", "Regression covered",
-            status="VERIFIED", verification=VALID_EVIDENCE,
-        )
-        self.assertEqual(record["status"], "VERIFIED")
-        self.assertEqual(record["verification"]["exit_code"], 0)
-        self.assertEqual(record["verification"]["test_count"], 4)
-
-    def test_nonzero_exit_code_is_rejected(self):
-        evidence = dict(VALID_EVIDENCE, exit_code=1)
-        with self.assertRaises(LearningLedgerError):
+    def test_caller_supplied_verification_evidence_is_rejected(self):
+        evidence = {
+            "commands": ["python -m unittest"],
+            "exit_code": 0,
+            "test_count": 4,
+            "timestamp": "2026-10-21T02:00:00Z",
+        }
+        with self.assertRaisesRegex(LearningLedgerError, "Caller-supplied"):
             self.ledger.append_record(
-                HASH, "test_error", "not fixed",
-                status="VERIFIED", verification=evidence,
+                HASH, "test_error", "claimed pass",
+                status="SYNTAX_VALID", verification=evidence,
             )
 
     def test_invalid_hash_is_rejected(self):
