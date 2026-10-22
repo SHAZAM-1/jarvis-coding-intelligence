@@ -29,10 +29,10 @@ records provenance in the learning ledger.
 This remains an incremental behavioral-verification solution. The opt-in
 `DockerFunctionVerifier` provides a restricted, network-disabled test adapter
 for pure JSON-callable functions, with bounded CPU, memory, processes, runtime,
-and output. GitHub Actions run #279 passed all four supported Python versions; the Python
+and output. GitHub Actions run #281 passed all four supported Python versions; the Python
 3.10 job ran 126 tests, including the workflow-to-Docker-adapter integration
-test and extreme-timeout validation. CI mocks the Docker boundary, so no real
-container run is claimed. It does not cover arbitrary project tests. Without a
+test and smoke-script resource/opt-in checks. CI mocks the Docker boundary, so
+no real container run is claimed. It does not cover arbitrary project tests. Without a
 configured verifier, outcomes remain `SYNTAX_VALID` or `UNVERIFIED`, never
 `VERIFIED`.
 
@@ -203,10 +203,10 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
-| W-17 | Docker behavioral verifier | Implemented; CI run #279 passed | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, bounded host output, and extreme-timeout rejection | Run the owner-invoked smoke helper on Windows/Docker Desktop; broader project-level test interfaces remain future work | 
+| W-17 | Docker behavioral verifier | Implemented; CI run #281 passed | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, bounded host output, and extreme-timeout rejection | Run the owner-invoked smoke helper on Windows/Docker Desktop; broader project-level test interfaces remain future work | 
 | W-18 | Real Docker smoke test | Helper implemented; owner-run validation pending | `scripts/docker_verifier_smoke.py` requires explicit `--run`, blocks below 1536 MiB or unknown RAM, and uses only an already-installed image | First run `python -m scripts.docker_verifier_smoke` for help; then run with `--run` only when Docker/image/free-RAM preflight is satisfied |
-| W-19 | Cross-component workflow integration | CI run #279 passed | Test wires `CorrectionWorkflow`, `DockerFunctionVerifier`, and schema-v2 ledger with mocked Docker boundary; real container is not run | Validate one real Docker smoke test separately; keep general multi-file test execution as a separate future milestone |
-| W-16 | Workflow coordinator verification | Coordinator and optional adapter implemented; CI run #279 passed | Run #279 passed on Python 3.10–3.13; Python 3.10 ran 126 tests | Continue with a real Docker smoke test and broader project-level verification; do not merge stacked PRs yet |
+| W-19 | Cross-component workflow integration | CI run #281 passed | Test wires `CorrectionWorkflow`, `DockerFunctionVerifier`, and schema-v2 ledger with mocked Docker boundary; real container is not run | Validate one real Docker smoke test separately; keep general multi-file test execution as a separate future milestone |
+| W-16 | Workflow coordinator verification | Coordinator and optional adapter implemented; CI run #281 passed | Run #281 passed on Python 3.10–3.13; Python 3.10 ran 126 tests | Continue with a real Docker smoke test and broader project-level verification; do not merge stacked PRs yet |
 
 ### Current blockers
 
