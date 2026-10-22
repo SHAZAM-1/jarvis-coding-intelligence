@@ -2,6 +2,7 @@
 
 import io
 import json
+from dataclasses import replace
 import subprocess
 import tempfile
 import unittest
@@ -239,6 +240,13 @@ class BehavioralVerifierTests(unittest.TestCase):
             success=True,
         )
         self.assertFalse(is_trusted_receipt(receipt))
+
+    def test_copying_a_receipt_does_not_preserve_issuer_authority(self):
+        verifier = self.make_verifier()
+        result = verifier.verify(SOURCE, "add", CASES, allow_execution=True)
+        copied = replace(result.receipt, success=False)
+        self.assertTrue(is_trusted_receipt(result.receipt))
+        self.assertFalse(is_trusted_receipt(copied))
 
 
 if __name__ == "__main__":
