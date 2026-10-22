@@ -1,7 +1,8 @@
-"""Append-only ledger for compact, evidence-labelled coding lessons.
+"""Append-only ledger for compact lessons with conservative evidence labels.
 
-The ledger records caller-supplied verification metadata. It does not itself
-execute tests or prove that a command was genuinely run.
+Only workflow-produced syntax checks may set SYNTAX_VALID. This ledger does not
+execute candidate code, and VERIFIED is reserved until a trusted behavioral
+verifier can produce its own evidence.
 """
 
 import hashlib
@@ -12,7 +13,7 @@ import threading
 from datetime import datetime
 
 
-STATUSES = {"UNVERIFIED", "SYNTAX_VALID", "VERIFIED"}
+STATUSES = {"UNVERIFIED", "SYNTAX_VALID"}
 _CATEGORIES = {
     "missing_import", "syntax_error", "missing_attribute", "missing_key",
     "type_error", "assertion_failure", "timeout", "connection_error",
@@ -48,40 +49,6 @@ def _validate_hash(source_sha256):
     return source_sha256
 
 
-def _verification_evidence(evidence):
-    if not isinstance(evidence, dict):
-        raise LearningLedgerError("VERIFIED records require verification evidence.")
-
-    commands = evidence.get("commands")
-    exit_code = evidence.get("exit_code")
-    test_count = evidence.get("test_count")
-    timestamp = evidence.get("timestamp")
-
-    if (
-        not isinstance(commands, list)
-        or not commands
-        or any(not isinstance(command, str) or not command.strip() for command in commands)
-    ):
-        raise LearningLedgerError("Verification requires at least one test command.")
-    if exit_code != 0 or isinstance(exit_code, bool):
-        raise LearningLedgerError("Verification requires exit_code=0.")
-    if not isinstance(test_count, int) or isinstance(test_count, bool) or test_count < 1:
-        raise LearningLedgerError("Verification requires test_count >= 1.")
-    if not isinstance(timestamp, str):
-        raise LearningLedgerError("Verification requires an ISO timestamp.")
-    try:
-        datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise LearningLedgerError("Verification timestamp must be ISO-8601.") from exc
-
-    return {
-        "commands": [_safe_text(command, 200) for command in commands[:3]],
-        "exit_code": 0,
-        "test_count": test_count,
-        "timestamp": timestamp,
-    }
-
-
 class LearningLedger:
     """Append compact, privacy-conscious lesson records as JSON Lines."""
 
@@ -99,8 +66,17 @@ class LearningLedger:
         verification=None,
     ):
         """Append one record; raw source and raw failure output are never stored."""
+        if status == "VERIFIED":
+            raise LearningLedgerError(
+                "VERIFIED status is reserved until a trusted behavioral "
+                "verifier can supply its own evidence."
+            )
         if status not in STATUSES:
             raise LearningLedgerError(f"status must be one of {sorted(STATUSES)}")
+        if verification is not None:
+            raise LearningLedgerError(
+                "Caller-supplied verification evidence is not accepted."
+            )
         source_sha256 = _validate_hash(source_sha256)
         if not isinstance(category, str) or category not in _CATEGORIES:
             raise LearningLedgerError("category must be a recognized diagnostic category.")
@@ -113,15 +89,6 @@ class LearningLedger:
             "summary": _safe_text(summary, 240),
             "status": status,
         }
-        if status == "VERIFIED":
-            record["verification"] = _verification_evidence(verification)
-        elif verification is not None:
-            # Preserve evidence only for explicitly verified records, avoiding
-            # misleading partial proof on other statuses.
-            raise LearningLedgerError(
-                "verification evidence is accepted only for VERIFIED records."
-            )
-
         encoded = (json.dumps(record, sort_keys=True, ensure_ascii=True) + "\n")
         parent = os.path.dirname(os.path.abspath(self.path))
         os.makedirs(parent, exist_ok=True)
