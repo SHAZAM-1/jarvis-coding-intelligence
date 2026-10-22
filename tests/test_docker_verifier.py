@@ -124,8 +124,8 @@ class DockerFunctionVerifierTests(unittest.TestCase):
             "--name",
         ):
             self.assertIn(required, command)
-        self.assertEqual(command[command.index("--user") + 1], "65532:65532")
-        self.assertNotEqual(command[command.index("--user") + 1], "0:0")
+        self.assertIn("--user=65532:65532", command)
+        self.assertNotIn("--user=0:0", command)
         self.assertIn("python", command)
         self.assertIn("-I", command)
         self.assertIn("-B", command)
