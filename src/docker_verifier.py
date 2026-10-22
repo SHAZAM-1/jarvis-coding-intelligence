@@ -337,8 +337,10 @@ class DockerFunctionVerifier:
                 raise VerifierExecutionError(
                     "Temporary workspace path contains a Docker mount delimiter."
                 )
+            container_name = f"jarvis-verifier-{uuid.uuid4().hex[:20]}"
             command = [
                 self.docker_executable, "run", "--rm", "--pull=never",
+                "--name", container_name,
                 "--network=none", "--read-only", "--memory=256m", "--cpus=0.5",
                 "--pids-limit=32", "--cap-drop=ALL",
                 "--security-opt=no-new-privileges", "--user=0:0",
@@ -351,6 +353,20 @@ class DockerFunctionVerifier:
                 command, input_text=payload, timeout_seconds=self.timeout_seconds,
                 output_limit=_MAX_OUTPUT_BYTES,
             )
+            if timed_out or overflow:
+                # Killing the Docker CLI alone may leave the daemon-managed
+                # container running. Best-effort cleanup targets this unique
+                # container name and is bounded independently.
+                for cleanup_args in (["kill", container_name], ["rm", "--force", container_name]):
+                    try:
+                        _run_bounded(
+                            [self.docker_executable, *cleanup_args],
+                            timeout_seconds=3,
+                            output_limit=4096,
+                        )
+                    except DockerVerifierError:
+                        # Preserve the original timeout/output-limit failure.
+                        pass
         if timed_out:
             raise VerifierExecutionError("Docker behavioral verification timed out.")
         if overflow:
