@@ -30,8 +30,10 @@ The correction workflow is an initial end-to-end slice, not behavioral
 self-correction. It extracts exactly one fenced Python candidate, parses it
 without executing it, and records SYNTAX_VALID only when that parse succeeds.
 It never applies or executes candidate code. A syntax-valid candidate is not
-a verified fix. Caller-supplied VERIFIED status/evidence is rejected until a
-trusted behavioral verifier can produce evidence from tests it actually ran.
+a verified fix. Caller-supplied VERIFIED status/evidence is rejected; the only
+promotion path is a receipt from the opt-in Docker behavioral verifier after all
+declared cases pass. The verifier has not yet been exercised against a real
+Docker daemon/image, so sandbox integration remains unverified.
 The smoke checks validate selected Python AST structures for three built-in
 tasks; they do not prove full semantic correctness. No candidate model is
 considered stronger until it is tested on the same reproducible coding tasks
