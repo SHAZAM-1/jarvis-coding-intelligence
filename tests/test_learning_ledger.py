@@ -82,6 +82,16 @@ class LearningLedgerTests(unittest.TestCase):
                 status="VERIFIED", verification=evidence,
             )
 
+    def test_malformed_or_timezone_naive_evidence_timestamp_is_rejected(self):
+        for timestamp in ("", "not-a-timestamp", "2026-10-21T02:00:00"):
+            with self.subTest(timestamp=timestamp):
+                evidence = dict(VALID_EVIDENCE, timestamp=timestamp)
+                with self.assertRaises(LearningLedgerError):
+                    self.ledger.append_record(
+                        HASH, "test_error", "invalid timestamp",
+                        status="VERIFIED", verification=evidence,
+                    )
+
     def test_invalid_hash_is_rejected(self):
         with self.assertRaises(LearningLedgerError):
             self.ledger.append_record("not-a-hash", "unknown", "lesson")
