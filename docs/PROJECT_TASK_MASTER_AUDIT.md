@@ -27,10 +27,11 @@ trusted adapter, checks the returned source hash and verifier identity, and
 records provenance in the learning ledger.
 
 This remains an incremental behavioral-verification solution. The opt-in
-`DockerFunctionVerifier` now provides a restricted, network-disabled test
-adapter for pure JSON-callable functions, with bounded CPU, memory, processes,
-runtime, and output. It does not cover arbitrary project tests, and no actual
-Docker container has been run in CI; tests mock the Docker boundary. Without a
+`DockerFunctionVerifier` provides a restricted, network-disabled test adapter
+for pure JSON-callable functions, with bounded CPU, memory, processes, runtime,
+and output. GitHub Actions run #258 passed all four supported Python versions;
+the Python 3.10 job ran 121 tests. CI mocks the Docker boundary, so no real
+container run is claimed. It does not cover arbitrary project tests. Without a
 configured verifier, outcomes remain `SYNTAX_VALID` or `UNVERIFIED`, never
 `VERIFIED`.
 
@@ -55,7 +56,7 @@ Recommended order: verify the latest branch locally; review stacked PR dependenc
 | P-13 | Model-quality evaluation | Incomplete | No reliable evidence updates improved general coding accuracy | Establish baseline and broaden benchmark | Critical |
 | P-14 | Integration into main | Incomplete | Features remain in stacked draft PRs | Verify dependencies and integrate safely | High |
 | P-15 | Real-model resource benchmark | Pending | Inference deliberately avoided because prior RAM headroom was low | Recheck RAM before inference | Critical |
-| P-16 | Restricted behavioral verifier | Implemented as an opt-in initial adapter | Docker runner supports JSON-callable single-function cases; no Docker image is pulled and no real container run has been claimed | Add broader trusted test interfaces only after isolation review and real-environment validation | High |
+| P-16 | Restricted behavioral verifier | Implemented as an opt-in initial adapter; CI passed | Docker runner supports JSON-callable single-function cases; no Docker image is pulled; tests validate command safety, output limits, and runner syntax | Perform a controlled real-container smoke test with a preinstalled image; add broader trusted test interfaces only after isolation review | High |
 
 ### 1.1 Known pull-request stack
 
@@ -70,7 +71,7 @@ Statuses below reflect the audit snapshot and must be rechecked before integrati
 | [#5 — Deterministic coding smoke benchmark](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/5) | Initial benchmark | Draft, CI passed on recorded head | Three opt-in coding tasks |
 | [#6 — Python AST validation](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/6) | Structural checks | Draft, CI passed on recorded head | AST checks for benchmark output |
 | [#7 — Strict validation and audit timeouts](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/7) | Additional validation | Draft, CI passed on recorded head | Stricter AST checks and invalid/non-finite audit-timeout rejection |
-| [#17 — Correction workflow coordinator](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/17) | Workflow and verifier slice | Draft; coordinator baseline CI passed; Docker-adapter changes awaiting fresh CI | Strict proposal extraction, syntax gate, optional Docker verifier for JSON-callable functions, and provenance-aware ledger records |
+| [#17 — Correction workflow coordinator](https://github.com/SHAZAM-1/jarvis-coding-intelligence/pull/17) | Workflow and verifier slice | Draft; CI run #258 passed on Python 3.10–3.13; 121 tests in the Python 3.10 job | Strict proposal extraction, syntax gate, optional Docker verifier for JSON-callable functions, and provenance-aware ledger records; real Docker execution remains untested |
 
 **Stack warning:** These PRs are stacked, not independent. Verify base/head relationships and combined diffs before merging. Do not merge a child PR into main while assuming its parent changes are already present.
 
@@ -201,8 +202,9 @@ These require reproducible experiments. Orchestration changes should not be desc
 | W-13 | Prompt-injection hardening | Incomplete | Boundaries need more work | Add defenses and regression tests |
 | W-14 | Safe behavioral-test isolation | Not implemented end to end | Syntax check does not execute code | Design restricted execution |
 | W-15 | Main-branch integration | Pending | PR stack unmerged in recorded audit | Integrate after review |
-| W-17 | Docker behavioral verifier | Implemented; validation pending | Optional JSON-function verifier added with no-pull image check, network-disabled container, resource limits, isolated per-case child process, and bounded output | CI mocks Docker; validate tests and command construction, then perform a real Docker run only with a locally available image and explicit runtime preflight |
-| W-16 | Workflow coordinator verification | Coordinator slice implemented; CI run #248 passed before Docker adapter addition | Run #248 passed on Python 3.10–3.13 after normalizing the prompt assertion; the latest adapter changes require a fresh CI run | Verify adapter tests, update evidence from the new run, and do not merge stacked PRs yet |
+| W-17 | Docker behavioral verifier | Implemented; CI run #258 passed | No-pull image check, network-disabled container, read-only mount/root filesystem, resource limits, isolated per-case child process, strict result summary, and bounded host output | CI mocks Docker; perform a real Docker run only with a locally available image and explicit runtime preflight | 
+| W-18 | Real Docker smoke test | Pending; not run | CI does not launch Docker or pull images; Windows/Docker Desktop behavior is not yet verified | Check current free RAM and Docker state; use only an image already installed locally; verify one small pure-function case without model inference |
+| W-16 | Workflow coordinator verification | Coordinator and optional adapter implemented; CI run #258 passed | Run #258 passed on Python 3.10–3.13; Python 3.10 ran 121 tests | Continue with a real Docker smoke test and broader project-level verification; do not merge stacked PRs yet |
 
 ### Current blockers
 
@@ -210,7 +212,8 @@ These require reproducible experiments. Orchestration changes should not be desc
 2. There is no complete correction-to-verification pipeline.
 3. Three smoke tasks are insufficient for model comparisons.
 4. Real inference needs a fresh RAM check.
-5. The stacked PRs need dependency review before merging.
+5. The Docker adapter still needs one controlled real-container smoke test; CI uses mocks.
+6. The stacked PRs need dependency review before merging.
 
 ## 7. Main architectural limitations and strength of updates
 
@@ -240,7 +243,7 @@ These require reproducible experiments. Orchestration changes should not be desc
 | 3 | Design correction workflow | Coordinator slice in workflow branch | Proposal parsing, syntax gate, bounded failure states, and no-auto-apply boundary are implemented; behavioral runner contract still needs a trusted adapter | Critical |
 | 4 | Integrate correction and syntax validation | Proposal-validation coordinator | Strictly extract one replacement block, reject ambiguous output, and keep candidate code unexecuted | Critical |
 | 5 | Add independent verification evidence | Source-bound verifier handoff and ledger provenance | Coordinator checks source hash and verifier identity; completion still requires a real trusted adapter that generates evidence | Critical |
-| 6 | Add controlled behavioral testing | Initial Docker function verifier | JSON-callable function candidates pass/fail trusted expected-output cases; general project tests remain future work | Critical |
+| 6 | Add controlled behavioral testing | Initial Docker function verifier; CI suite green | JSON-callable function candidates pass/fail trusted expected-output cases; real container execution and general project tests remain future work | Critical |
 | 7 | Integrate learning ledger | Coordinator writes UNVERIFIED/SYNTAX_VALID or gated VERIFIED records | Tests show only matching successful adapter evidence can promote a record; actual adapter trust/isolation remains outstanding | Critical |
 | 8 | Harden untrusted-input handling | Adversarial regression tests | Untrusted content cannot authorize actions | Critical |
 | 9 | Expand coding benchmark | Behavioral benchmark | Diverse tasks cover common failures | Critical |
