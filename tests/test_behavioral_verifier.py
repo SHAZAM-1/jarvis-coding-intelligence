@@ -1,5 +1,6 @@
 """Unit tests for the opt-in Docker behavioral verifier; no Docker is invoked."""
 
+import ast
 import io
 import json
 from dataclasses import replace
@@ -11,6 +12,7 @@ from types import SimpleNamespace
 from src.learning_ledger import LearningLedger, LearningLedgerError
 from src.behavioral_verifier import (
     MAX_OUTPUT_BYTES,
+    _WORKER_SOURCE,
     BehavioralVerificationError,
     BehavioralVerifier,
     VerificationReceipt,
@@ -78,6 +80,9 @@ class BehavioralVerifierTests(unittest.TestCase):
             run_func=self.run_func,
             popen_factory=popen,
         )
+
+    def test_worker_harness_is_valid_python(self):
+        ast.parse(_WORKER_SOURCE, filename="worker.py")
 
     def test_execution_is_disabled_by_default(self):
         verifier = self.make_verifier()
@@ -152,6 +157,13 @@ class BehavioralVerifierTests(unittest.TestCase):
     def test_malformed_worker_output_fails_closed(self):
         process = FakeProcess(b"not-json\n")
         with self.assertRaises(BehavioralVerificationError):
+            self.make_verifier(process).verify(
+                SOURCE, "add", CASES, allow_execution=True
+            )
+
+    def test_non_boolean_protocol_status_fails_closed(self):
+        process = FakeProcess(b'{"ok":1,"value":3}\\n')
+        with self.assertRaisesRegex(BehavioralVerificationError, "worker protocol"):
             self.make_verifier(process).verify(
                 SOURCE, "add", CASES, allow_execution=True
             )
