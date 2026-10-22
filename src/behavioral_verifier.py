@@ -196,7 +196,10 @@ class BehavioralVerifier:
         run_func=subprocess.run,
         popen_factory=subprocess.Popen,
     ):
-        if not isinstance(image_digest, str) or not _IMAGE_DIGEST.fullmatch(image_digest):
+        if (
+            not isinstance(image_digest, str)
+            or not _IMAGE_DIGEST.fullmatch(image_digest)
+        ):
             raise ValueError("image_digest must include an immutable @sha256 digest.")
         if (
             not isinstance(timeout_seconds, (int, float))
@@ -272,7 +275,7 @@ class BehavioralVerifier:
                 command = self._container_command(
                     container_name, workspace, entrypoint
                 )
-                stdout, stderr, exit_code = self._run_bounded(
+                stdout, _, exit_code = self._run_bounded(
                     command, input_payload, container_name
                 )
         except (OSError, subprocess.SubprocessError) as exc:
@@ -345,7 +348,8 @@ class BehavioralVerifier:
             ) from exc
         if result.returncode != 0:
             raise VerificationUnavailableError(
-                "Approved sandbox image is not available locally; automatic pulls are disabled."
+                "Approved sandbox image is not available locally; "
+                "automatic pulls are disabled."
             )
 
     def _container_command(self, container_name, workspace, entrypoint):
@@ -393,8 +397,12 @@ class BehavioralVerifier:
                 output[key].extend(chunk)
 
         readers = [
-            threading.Thread(target=drain, args=(process.stdout, "stdout"), daemon=True),
-            threading.Thread(target=drain, args=(process.stderr, "stderr"), daemon=True),
+            threading.Thread(
+                target=drain, args=(process.stdout, "stdout"), daemon=True
+            ),
+            threading.Thread(
+                target=drain, args=(process.stderr, "stderr"), daemon=True
+            ),
         ]
         for reader in readers:
             reader.start()
