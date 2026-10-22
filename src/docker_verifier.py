@@ -133,6 +133,7 @@ def _run_bounded(command, input_text=None, timeout_seconds=20, output_limit=_MAX
 
 _RUNNER_SOURCE = r'''import json
 import os
+import signal
 import subprocess
 import sys
 
@@ -174,26 +175,52 @@ def main():
             "kwargs": case["kwargs"],
         }
         try:
-            child = subprocess.run(
+            child = subprocess.Popen(
                 [sys.executable, "-I", "-B", "-c", CHILD_RUNNER],
-                input=json.dumps(request, allow_nan=False),
-                text=True,
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=2.0,
+                text=True,
                 cwd="/workspace",
                 env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
                      "HOME": "/tmp", "PYTHONDONTWRITEBYTECODE": "1"},
-                check=False,
+                start_new_session=True,
             )
-        except subprocess.TimeoutExpired:
-            failures.append({"case": index, "reason": "timeout"})
-            continue
+            try:
+                child_stdout, _ = child.communicate(
+                    input=json.dumps(request, allow_nan=False), timeout=2.0
+                )
+            except subprocess.TimeoutExpired:
+                # Candidate code may spawn descendants. Kill the whole process
+                # group, not just the immediate Python child, before continuing.
+                try:
+                    os.killpg(child.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                try:
+                    child.communicate(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    # A descendant may have escaped the process group while
+                    # retaining pipe handles. Ensure the direct child is reaped
+                    # and release our pipe handles rather than waiting forever.
+                    try:
+                        child.kill()
+                    except OSError:
+                        pass
+                    child.wait()
+                    for pipe in (child.stdin, child.stdout, child.stderr):
+                        if pipe is not None and not pipe.closed:
+                            try:
+                                pipe.close()
+                            except OSError:
+                                pass
+                failures.append({"case": index, "reason": "timeout"})
+                continue
         except OSError:
             failures.append({"case": index, "reason": "process_error"})
             continue
 
-        lines = child.stdout.splitlines()
+        lines = child_stdout.splitlines()
         try:
             response = json.loads(lines[-1]) if lines else {}
         except (ValueError, TypeError):
