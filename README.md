@@ -16,7 +16,7 @@ reproducible evaluation, verified learning, and resource-aware operation.
 - Non-executing Python syntax verification.
 - Append-only, privacy-conscious learning ledger with evidence-gated VERIFIED
   records.
-- Small deterministic coding smoke checks (not a reliable accuracy benchmark).
+- Five-task deterministic coding smoke checks plus opt-in, low-overhead system-wide RAM/CPU sampling (not a reliable accuracy benchmark).
 - Unit tests and Python 3.10–3.13 CI.
 
 The resource guard reduces avoidable memory use; it cannot guarantee that
@@ -189,15 +189,27 @@ verifier = DockerFunctionVerifier(
 # Pass verifier and verifier.verifier_id to CorrectionWorkflow.
 ```
 
-## Coding smoke checks
+## Coding smoke checks and resource measurements
 
-The smoke-check runner is opt-in and sends three small requests to the selected
+The smoke-check runner is opt-in and sends five small requests to the selected
 local Ollama model. It does not download a model or execute generated code.
+During each task, it samples available system RAM and system-wide CPU at a
+250 ms interval, and records elapsed time, minimum available RAM, an estimated
+peak system RAM usage, and sampled CPU average/peak.
 For the built-in tasks, Python's AST parser checks the requested function,
 dictionary lookup, or list-comprehension structure. These checks are stronger
 than searching for text markers, but still do not prove runtime behavior or
 full semantic correctness. The resource guard may refuse requests when
 available RAM is too low.
+
+Resource readings describe the whole system and are **not attributed to the
+Ollama process**. Estimated peak used RAM is total physical RAM minus the
+minimum available RAM observed during the task. Background activity can affect
+the results; short tasks may produce few CPU samples. The harness does not
+control warm/cold model state or collect the Ollama version, so repeat runs and
+environment notes are required before drawing comparisons. These measurements
+are diagnostic, not proof of a model-specific memory footprint or a quality
+improvement.
 
 In PowerShell, run unit tests first. Only run the model checks when the laptop
 has adequate free RAM and Ollama is running:
