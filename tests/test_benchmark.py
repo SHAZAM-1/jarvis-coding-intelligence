@@ -5,6 +5,19 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 
+class FakeResourceSampler:
+    """Deterministic sampler for offline benchmark unit tests."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+    def report(self):
+        return {"measurement_scope": "test_fixture", "available_ram_min_mb": 2048}
+
+
 from src.benchmark import (
     BENCHMARK_TASKS,
     BenchmarkTask,
@@ -139,7 +152,7 @@ class BenchmarkTests(unittest.TestCase):
             "data.get('name')",
         ]
         tasks = BENCHMARK_TASKS[:2]
-        result = run_benchmark(client, tasks)
+        result = run_benchmark(client, tasks, resource_sampler_factory=FakeResourceSampler)
         self.assertEqual(result["tasks_total"], 2)
         self.assertEqual(result["tasks_passed"], 2)
         self.assertEqual(result["tasks_failed"], 0)
@@ -150,13 +163,34 @@ class BenchmarkTests(unittest.TestCase):
             for call in client.generate.call_args_list
         ))
 
+    def test_runner_includes_resource_metrics_and_environment(self):
+        client = Mock()
+        client.model = "installed-test-model"
+        client.generate.return_value = "def add(a, b): return a + b"
+
+        result = run_benchmark(
+            client,
+            BENCHMARK_TASKS[:1],
+            resource_sampler_factory=FakeResourceSampler,
+        )
+
+        self.assertEqual(
+            result["results"][0]["resource_metrics"]["measurement_scope"],
+            "test_fixture",
+        )
+        self.assertEqual(result["measurement_environment"]["execution_mode"], "sequential")
+        self.assertIn("not controlled", result["measurement_environment"]["model_warm_cold_state"])
+        self.assertEqual(result["model"], "installed-test-model")
+
     def test_runner_continues_after_a_task_error(self):
         client = Mock()
         client.generate.side_effect = [
             RuntimeError("private machine details should not be retained"),
             "data.get('name')",
         ]
-        result = run_benchmark(client, BENCHMARK_TASKS[:2])
+        result = run_benchmark(
+            client, BENCHMARK_TASKS[:2], resource_sampler_factory=FakeResourceSampler
+        )
         self.assertEqual(result["tasks_failed"], 1)
         self.assertEqual(result["results"][0]["error_type"], "RuntimeError")
         self.assertNotIn("private machine details", str(result))
