@@ -9,11 +9,16 @@ benchmark and not proof that generated code works.
 import argparse
 import ast
 import json
+import platform
 import sys
 from dataclasses import dataclass
 from time import perf_counter
 
 from src.model_client import DEFAULT_MODEL, OllamaClient
+from src.resource_metrics import (
+    DEFAULT_SAMPLE_INTERVAL_SECONDS,
+    ResourceSampler,
+)
 
 
 @dataclass(frozen=True)
@@ -280,38 +285,42 @@ def evaluate_response(response, task):
     }
 
 
-def run_benchmark(client, tasks=BENCHMARK_TASKS):
-    """Run fixed smoke tasks sequentially using the client's fast profile.
+def run_benchmark(client, tasks=BENCHMARK_TASKS, resource_sampler_factory=None):
+    """Run fixed smoke tasks sequentially and sample system resources.
 
     Per-task exceptions are summarized by type only; exception messages may
     contain machine-specific details and are intentionally not retained.
+    Resource readings describe the host, not the Ollama process specifically.
     """
     results = []
+    sampler_factory = resource_sampler_factory or ResourceSampler
     for task in tasks:
         started = perf_counter()
-        try:
-            response = client.generate(task.prompt, profile="fast")
-            evaluation = evaluate_response(response, task)
-            results.append({
-                "task_id": task.task_id,
-                **evaluation,
-                "response_chars": len(response),
-                "error_type": None,
-            })
-        except Exception as exc:
-            results.append({
-                "task_id": task.task_id,
-                "passed": False,
-                "validation_method": "error",
-                "required_markers": list(task.required_markers),
-                "missing_markers": list(task.required_markers),
-                "issues": [],
-                "response_chars": None,
-                "error_type": type(exc).__name__,
-            })
+        with sampler_factory() as resource_sampler:
+            try:
+                response = client.generate(task.prompt, profile="fast")
+                evaluation = evaluate_response(response, task)
+                results.append({
+                    "task_id": task.task_id,
+                    **evaluation,
+                    "response_chars": len(response),
+                    "error_type": None,
+                })
+            except Exception as exc:
+                results.append({
+                    "task_id": task.task_id,
+                    "passed": False,
+                    "validation_method": "error",
+                    "required_markers": list(task.required_markers),
+                    "missing_markers": list(task.required_markers),
+                    "issues": [],
+                    "response_chars": None,
+                    "error_type": type(exc).__name__,
+                })
         results[-1]["elapsed_ms"] = round(
             (perf_counter() - started) * 1000, 2
         )
+        results[-1]["resource_metrics"] = resource_sampler.report()
 
     passed = sum(result["passed"] for result in results)
     return {
@@ -321,25 +330,40 @@ def run_benchmark(client, tasks=BENCHMARK_TASKS):
         "tasks_passed": passed,
         "tasks_failed": len(results) - passed,
         "score_percent": round(100 * passed / len(results), 2) if results else 0.0,
+        "measurement_environment": {
+            "platform": platform.platform(),
+            "python_version": platform.python_version(),
+            "execution_mode": "sequential",
+            "model_warm_cold_state": (
+                "not controlled; the first task may be cold and later tasks may be warm"
+            ),
+            "background_activity": "not controlled; RAM and CPU readings are system-wide",
+            "sampling_interval_ms": round(
+                DEFAULT_SAMPLE_INTERVAL_SECONDS * 1000, 1
+            ),
+            "ollama_version": "not collected by this harness",
+        },
         "results": results,
         "limitations": [
             "AST checks validate syntax shape, not runtime behavior or full semantics.",
             "Generated code is parsed but never executed.",
             "No unit tests, security checks, or behavioral equivalence checks run.",
             "A single run is not a statistically valid model accuracy comparison.",
+            "RAM and CPU measurements are system-wide and are not attributed to Ollama.",
+            "Estimated peak system RAM used is total physical RAM minus minimum available RAM.",
+            "Background activity and warm/cold model state are not controlled; repeat runs are needed.",
         ],
     }
-
 
 def main(argv=None):
     """Run only when the user explicitly supplies --run; never download models."""
     parser = argparse.ArgumentParser(
-        description="Run three small coding smoke checks against local Ollama."
+        description="Run five small coding smoke checks and system resource sampling against local Ollama."
     )
     parser.add_argument(
         "--run",
         action="store_true",
-        help="explicitly allow three local inference requests",
+        help="explicitly allow local inference requests for the built-in tasks",
     )
     parser.add_argument(
         "--model",
