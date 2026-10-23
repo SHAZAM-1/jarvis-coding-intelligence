@@ -7,7 +7,6 @@ Importing this module starts no thread and performs no system sampling.
 
 import ctypes
 import math
-import os
 import sys
 import threading
 from statistics import fmean
