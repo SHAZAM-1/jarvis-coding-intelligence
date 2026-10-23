@@ -285,7 +285,7 @@ def evaluate_response(response, task):
     }
 
 
-def run_benchmark(client, tasks=BENCHMARK_TASKS):
+def run_benchmark(client, tasks=BENCHMARK_TASKS, resource_sampler_factory=None):
     """Run fixed smoke tasks sequentially and sample system resources.
 
     Per-task exceptions are summarized by type only; exception messages may
@@ -293,9 +293,10 @@ def run_benchmark(client, tasks=BENCHMARK_TASKS):
     Resource readings describe the host, not the Ollama process specifically.
     """
     results = []
+    sampler_factory = resource_sampler_factory or ResourceSampler
     for task in tasks:
         started = perf_counter()
-        with ResourceSampler() as resource_sampler:
+        with sampler_factory() as resource_sampler:
             try:
                 response = client.generate(task.prompt, profile="fast")
                 evaluation = evaluate_response(response, task)
