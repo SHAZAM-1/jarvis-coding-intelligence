@@ -5,6 +5,15 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 
+from src.benchmark import (
+    BENCHMARK_TASKS,
+    BenchmarkTask,
+    evaluate_response,
+    main,
+    run_benchmark,
+)
+
+
 class FakeResourceSampler:
     """Deterministic sampler for offline benchmark unit tests."""
 
@@ -16,15 +25,6 @@ class FakeResourceSampler:
 
     def report(self):
         return {"measurement_scope": "test_fixture", "available_ram_min_mb": 2048}
-
-
-from src.benchmark import (
-    BENCHMARK_TASKS,
-    BenchmarkTask,
-    evaluate_response,
-    main,
-    run_benchmark,
-)
 
 
 class BenchmarkTests(unittest.TestCase):
