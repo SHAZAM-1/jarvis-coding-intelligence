@@ -2,7 +2,7 @@
 
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 from src.resource_metrics import (
     ResourceSampler,
@@ -39,6 +39,9 @@ class ResourceSamplerTests(unittest.TestCase):
         self.assertEqual(report["system_cpu_peak_percent"], 80.0)
         self.assertEqual(report["memory_sample_count"], 2)
         self.assertEqual(report["cpu_interval_sample_count"], 1)
+        self.assertEqual(report["memory_sampling_status"], "insufficient_samples")
+        self.assertEqual(report["cpu_sampling_status"], "insufficient_samples")
+        self.assertEqual(report["minimum_reportable_sample_count"], 3)
         self.assertTrue(report["limitations"])
 
     @patch("src.resource_metrics._total_physical_memory_mb", return_value=None)
@@ -57,6 +60,9 @@ class ResourceSamplerTests(unittest.TestCase):
         self.assertIsNone(report["estimated_peak_system_ram_used_mb"])
         self.assertIsNone(report["system_cpu_average_percent"])
         self.assertEqual(report["memory_sample_count"], 0)
+        self.assertEqual(report["cpu_counter_sample_count"], 0)
+        self.assertEqual(report["memory_sampling_status"], "unavailable")
+        self.assertEqual(report["cpu_sampling_status"], "unavailable")
 
     @patch("src.resource_metrics.sys.platform", "win32")
     @patch(
@@ -89,6 +95,28 @@ class ResourceSamplerTests(unittest.TestCase):
     )
     def test_windows_cpu_counter_reads_system_times(self, _windll):
         self.assertEqual(_cpu_counters(), (1000, 100))
+
+    @patch("src.resource_metrics.sys.platform", "linux")
+    def test_linux_cpu_counters_exclude_guest_counters(self, _platform):
+        stat = "cpu 100 20 30 40 5 6 7 8 9 10\n"
+        with patch("builtins.open", mock_open(read_data=stat)):
+            self.assertEqual(_cpu_counters(), (216, 45))
+
+    def test_reports_when_minimum_sample_count_is_met(self):
+        sampler = ResourceSampler(interval_seconds=1)
+        sampler._total_ram_mb = 8000
+        sampler._samples = [
+            {"available_ram_mb": available, "cpu": (index * 100, index * 50)}
+            for index, available in enumerate((6000, 5900, 5800, 5700), start=1)
+        ]
+        sampler._cpu_percentages = [50.0, 50.0, 50.0]
+
+        report = sampler.report()
+
+        self.assertEqual(report["memory_sampling_status"], "minimum_sample_count_met")
+        self.assertEqual(report["cpu_sampling_status"], "minimum_sample_count_met")
+        self.assertEqual(report["cpu_counter_sample_count"], 4)
+        self.assertEqual(report["cpu_interval_sample_count"], 3)
 
     def test_rejects_invalid_sampling_interval(self):
         for interval in (0, -1, float("nan"), float("inf"), True, 61):
