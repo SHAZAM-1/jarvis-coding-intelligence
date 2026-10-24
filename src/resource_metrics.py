@@ -15,6 +15,7 @@ from src.resource_guard import available_memory_mb
 
 
 DEFAULT_SAMPLE_INTERVAL_SECONDS = 0.25
+MINIMUM_REPORTABLE_SAMPLE_COUNT = 3
 
 
 def _total_physical_memory_mb():
@@ -88,7 +89,10 @@ def _cpu_counters():
             if not fields or fields[0] != "cpu" or len(fields) < 5:
                 return None
             values = [int(value) for value in fields[1:]]
-            return sum(values), values[3] + values[4]
+            # Linux guest and guest_nice are already included in user and nice.
+            # Exclude those duplicate counters from the total to avoid double-counting.
+            total = sum(values[:8])
+            return total, values[3] + values[4]
         except (OSError, ValueError, IndexError):
             return None
     return None
@@ -173,6 +177,23 @@ class ResourceSampler:
             if before_mb is not None and minimum_mb is not None
             else None
         )
+        cpu_counter_sample_count = sum(
+            sample["cpu"] is not None for sample in samples
+        )
+        memory_sampling_status = (
+            "unavailable"
+            if not ram_values
+            else "insufficient_samples"
+            if len(ram_values) < MINIMUM_REPORTABLE_SAMPLE_COUNT
+            else "minimum_sample_count_met"
+        )
+        cpu_sampling_status = (
+            "unavailable"
+            if cpu_counter_sample_count == 0
+            else "insufficient_samples"
+            if len(cpu_percentages) < MINIMUM_REPORTABLE_SAMPLE_COUNT
+            else "minimum_sample_count_met"
+        )
         estimated_peak_used_mb = (
             max(0, self._total_ram_mb - minimum_mb)
             if self._total_ram_mb is not None and minimum_mb is not None
@@ -194,12 +215,17 @@ class ResourceSampler:
                 max(cpu_percentages) if cpu_percentages else None
             ),
             "memory_sample_count": len(ram_values),
+            "cpu_counter_sample_count": cpu_counter_sample_count,
             "cpu_interval_sample_count": len(cpu_percentages),
+            "minimum_reportable_sample_count": MINIMUM_REPORTABLE_SAMPLE_COUNT,
+            "memory_sampling_status": memory_sampling_status,
+            "cpu_sampling_status": cpu_sampling_status,
             "sample_interval_ms": round(self.interval_seconds * 1000, 1),
             "limitations": [
                 "RAM and CPU describe the whole system and are not attributed to Ollama.",
                 "Peak used RAM is estimated as total physical RAM minus minimum available RAM.",
                 "Background applications affect measurements; short tasks may have few CPU samples.",
+                "Three valid RAM observations and three CPU intervals are minimum reporting thresholds, not statistical confidence guarantees.",
                 "Unsupported or failed platform counters are reported as null, not guessed.",
             ],
         }
