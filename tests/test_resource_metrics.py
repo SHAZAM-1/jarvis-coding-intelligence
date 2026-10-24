@@ -98,7 +98,7 @@ class ResourceSamplerTests(unittest.TestCase):
 
     @patch("src.resource_metrics.sys.platform", "linux")
     def test_linux_cpu_counters_exclude_guest_counters(self, _platform):
-        stat = "cpu 100 20 30 40 5 6 7 8 9 10\\n"
+        stat = "cpu 100 20 30 40 5 6 7 8 9 10\n"
         with patch("builtins.open", mock_open(read_data=stat)):
             self.assertEqual(_cpu_counters(), (216, 45))
 
